@@ -64,6 +64,9 @@ jobs:
       # on Cloudflare-only HCL therefore means "nothing was checked," not
       # "nothing is wrong" -- assert a non-zero resource_count separately or
       # this gate is theatre.
+      - name: DEBUG dump raw checkov json shape
+        run: checkov -d . --framework terraform -o json | jq .
+
       - name: Assert Checkov actually scanned resources
         run: |
           resource_count=$(checkov -d . --framework terraform -o json | jq '.summary.resource_count')
