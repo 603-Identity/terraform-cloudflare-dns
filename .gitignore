@@ -1,0 +1,14 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files (Modules should NEVER contain state)
+*.tfstate
+*.tfstate.*
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Ignore variables files containing real credentials used for local testing
+*.tfvars
+*.tfvars.json
