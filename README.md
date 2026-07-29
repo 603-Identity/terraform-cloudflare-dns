@@ -46,6 +46,18 @@ ensure Cloudflare's **CNAME Flattening** is enabled on the zone.
 | `zone_id` | Cloudflare Zone ID the records are managed in. | `string` | n/a | yes |
 | `records` | DNS records to manage, keyed by a stable logical name. | `map(object({...}))` | `{}` | no |
 
+Each `records` entry is `{ name, type, content, ttl, proxied, priority, comment }`:
+
+| Field | Type | Default | Notes |
+|-------|------|---------|-------|
+| `name` | `string` | n/a | Required. |
+| `type` | `string` | n/a | Required. |
+| `content` | `string` | n/a | Required. |
+| `ttl` | `number` | `1` | `1` = Cloudflare "automatic". |
+| `proxied` | `bool` | `false` | Only meaningful for proxiable types (`A`/`AAAA`/`CNAME`). |
+| `priority` | `number` | `null` | Only meaningful for types like `MX` that use it. |
+| `comment` | `string` | `null` | Optional freeform note. |
+
 ## Outputs
 
 | Name | Description |
