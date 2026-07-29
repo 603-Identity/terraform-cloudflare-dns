@@ -17,18 +17,28 @@ variable "zone_id" {
 # corroboration. It's also not infallible: this same schema dump gives `content` the
 # description "A valid IPv4 address", which is flatly wrong for the MX/TXT records this
 # module also supports -- these generated descriptions are shape-approximate, not
-# ground truth. Full empirical confirmation (a real plan/apply against a live zone) is
-# still Task 5's job; treat short names / "@" as expected to work, not yet proven to.
+# ground truth.
 #
-# Separately, whether an explicit `proxied = false` sent on a non-proxiable type
-# (MX/TXT) round-trips cleanly or causes permanent plan drift is NOT visible in the
-# schema at all -- `proxied` is `optional, computed` with no type-conditional
-# validation exposed (though the schema JSON format has no way to represent a validator
-# at all, so this absence is weak evidence either way). Still open, still Task 5's job.
-# `proxied` below is deliberately left nullable (no default) rather than defaulting to
-# `false`, specifically so a consumer CAN omit it on MX/TXT records -- forcing an
-# explicit `false` on every record would have foreclosed the null arm of this same
-# question before Task 5 ever got to test it.
+# RESOLVED (Task 5, 2026-07-29): `realinfra.tftest.hcl`'s
+# "real_apply_settles_name_format_and_proxied_null" run applied three records against
+# the live API in the scratch zone grovesknows.com -- a short/bare name
+# (`tofu-ci-realinfra-short-probe`), a full FQDN
+# (`tofu-ci-realinfra-fqdn-probe.grovesknows.com`), and the `@` apex alias -- and
+# asserted each came back from the API with its `name` unchanged. All three passed:
+# https://github.com/603-Identity/terraform-cloudflare-dns/actions/runs/30482316455.
+# The provider's own schema docs were the ones that held; the v5 upgrade guide's
+# "requires a full FQDN" claim does not describe what the live API actually does. Short
+# names and "@" are both confirmed to work, not merely expected to.
+#
+# STILL OPEN: whether an omitted `proxied` on a non-proxiable type (MX/TXT) round-trips
+# as `null` or gets silently defaulted by the live API was NOT settled by the same run
+# above -- that run's MX probe (`mx_proxied_null_probe`) only asserted on `priority`, not
+# `proxied`, so the live value was never actually captured (a test-coverage gap, not a
+# negative result). `proxied` below is deliberately left nullable (no default) rather
+# than defaulting to `false`, specifically so a consumer CAN omit it on MX/TXT records --
+# forcing an explicit `false` on every record would have foreclosed the null arm of this
+# question before it could ever be tested. A follow-up run with an explicit assertion on
+# `cloudflare_dns_record.this["mx_proxied_null_probe"].proxied` would close this out.
 variable "records" {
   description = "DNS records to manage, keyed by a stable logical name so adding a record cannot renumber and destroy/recreate its neighbours in state."
   type = map(object({

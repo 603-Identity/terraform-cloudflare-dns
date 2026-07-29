@@ -50,7 +50,7 @@ Each `records` entry is `{ name, type, content, ttl, proxied, priority, comment 
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
-| `name` | `string` | n/a | Required. |
+| `name` | `string` | n/a | Required. Short/bare names and the `@` apex alias are both confirmed to work against the live API (Task 5, 2026-07-29) -- see `variables.tf`'s comment. |
 | `type` | `string` | n/a | Required. |
 | `content` | `string` | n/a | Required. |
 | `ttl` | `number` | `1` | `1` = Cloudflare "automatic". |
