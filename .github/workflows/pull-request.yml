@@ -64,14 +64,24 @@ jobs:
       # on Cloudflare-only HCL therefore means "nothing was checked," not
       # "nothing is wrong" -- assert a non-zero resource_count separately or
       # this gate is theatre.
-      - name: DEBUG dump raw checkov json shape
-        run: checkov -d . --framework terraform -o json | jq .
-
+      #
+      # DELIBERATELY RED, confirmed 2026-07-29: `checkov -d . --framework
+      # terraform -o json` on this module's own cloudflare_dns_record
+      # resource reports `"resource_count": 0` -- Checkov's own field name,
+      # flat at the JSON's top level (not nested under a "summary" key, a
+      # wrong assumption caught by a debug run before landing this). Zero
+      # means Checkov structurally cannot see this module's only resource
+      # type, not that it found zero problems. This job fails on every PR
+      # until that changes -- see IAC-BL-3 (OPA/Conftest is the only control
+      # that could cover this surface) in infrastructure-core's
+      # docs/backlog.md. Same "deliberately left red" pattern as IAC-BL-20
+      # there: a real, currently-failing gap stays visible rather than
+      # getting quietly skipped.
       - name: Assert Checkov actually scanned resources
         run: |
-          resource_count=$(checkov -d . --framework terraform -o json | jq '.summary.resource_count')
+          resource_count=$(checkov -d . --framework terraform -o json | jq '.resource_count')
           echo "Checkov resource_count: $resource_count"
           if [ "$resource_count" -eq 0 ]; then
-            echo "::error::Checkov scanned zero resources -- this is a vacuous pass, not a clean scan. See IAC-BL-3 in infrastructure-core's docs/backlog.md."
+            echo "::error::Checkov scanned zero resources -- Checkov ships zero Cloudflare-provider policies, so this module's cloudflare_dns_record resource is structurally invisible to it. Deliberately failing rather than reporting a vacuous pass. See IAC-BL-3 in infrastructure-core's docs/backlog.md."
             exit 1
           fi
