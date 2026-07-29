@@ -50,10 +50,17 @@ jobs:
       # asserting on "N passed" means a future PR that deletes or renames
       # every run block in main.tftest.hcl can't silently turn this into a
       # no-op check.
+      # -filter=main.tftest.hcl: without it, `tofu test` picks up EVERY
+      # *.tftest.hcl in the repo, including realinfra.tftest.hcl (Sprint 04 Task 5)
+      # -- which has no mock_provider and needs the real Cloudflare credential that
+      # only exists in merge-real-infra-test.yml's job, not here. That mismatch
+      # is exactly what broke PR #4's first run: this job tried to hit the live
+      # API with no credentials and failed. PR validation must stay mock-only;
+      # the real-infra file runs on its own workflow, on merge to main.
       - name: OpenTofu Test
         run: |
           set +e
-          test_output=$(tofu test -no-color)
+          test_output=$(tofu test -no-color -filter=main.tftest.hcl)
           test_exit=$?
           set -e
 
