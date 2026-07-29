@@ -1,0 +1,74 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tofu-test:
+    name: Mocked tofu test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+        with:
+          tofu_version: 1.11.6
+          # Same reasoning as infrastructure-core's pull-request.yml: the
+          # default wrapper masks tofu's real exit code behind step outputs.
+          tofu_wrapper: false
+
+      - name: OpenTofu Format Check
+        run: tofu fmt -check
+
+      - name: OpenTofu Init
+        run: tofu init
+
+      - name: OpenTofu Validate
+        run: tofu validate
+
+      # main.tftest.hcl mocks the cloudflare provider (mock_provider block)
+      # -- no real Cloudflare API calls, no credentials needed. The
+      # merge-time real-infrastructure test (Sprint 04 Task 5) is separate.
+      - name: OpenTofu Test
+        run: tofu test
+
+  checkov:
+    name: Checkov (HCL)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      # Installed via pip rather than bridgecrewio/checkov-action, matching
+      # infrastructure-core's pull-request.yml: that action's pinned image is
+      # frozen at Checkov 2.0.930 (Jan 2022) regardless of the action's own
+      # tag.
+      - name: Install Checkov
+        run: pip install checkov==3.3.8
+
+      - name: Run Checkov IaC Scanner
+        run: checkov -d . --framework terraform --compact
+
+      # Checkov ships zero Cloudflare-provider policies (verified against
+      # its check registry during the 2026-07-28 security review -- see
+      # infrastructure-core's docs/backlog.md IAC-BL-3). A clean run above
+      # on Cloudflare-only HCL therefore means "nothing was checked," not
+      # "nothing is wrong" -- assert a non-zero resource_count separately or
+      # this gate is theatre.
+      - name: Assert Checkov actually scanned resources
+        run: |
+          resource_count=$(checkov -d . --framework terraform -o json | jq '.summary.resource_count')
+          echo "Checkov resource_count: $resource_count"
+          if [ "$resource_count" -eq 0 ]; then
+            echo "::error::Checkov scanned zero resources -- this is a vacuous pass, not a clean scan. See IAC-BL-3 in infrastructure-core's docs/backlog.md."
+            exit 1
+          fi
