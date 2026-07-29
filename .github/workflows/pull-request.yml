@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8
         with:
           tofu_version: 1.11.6
           # Same reasoning as infrastructure-core's pull-request.yml: the
@@ -26,7 +26,10 @@ jobs:
           tofu_wrapper: false
 
       - name: OpenTofu Format Check
-        run: tofu fmt -check
+        # -recursive: today's layout is flat (no subdirectories), but a
+        # module repo conventionally grows an examples/ directory later --
+        # a non-recursive check would silently stop covering it.
+        run: tofu fmt -check -recursive
 
       - name: OpenTofu Init
         run: tofu init
@@ -37,11 +40,37 @@ jobs:
       # main.tftest.hcl mocks the cloudflare provider (mock_provider block)
       # -- no real Cloudflare API calls, no credentials needed. The
       # merge-time real-infrastructure test (Sprint 04 Task 5) is separate.
+      #
+      # `tofu test` exits 0 on "0 passed, 0 failed" just as readily as on a
+      # real pass -- the identical vacuous-pass shape as the Checkov gate
+      # below (confirmed by reproduction: an empty test directory, and a
+      # .tftest.hcl with zero run blocks, both report success). Capturing
+      # output via command substitution (not a pipe) sidesteps needing
+      # `set -o pipefail`/`PIPESTATUS` to get tofu's real exit code, and
+      # asserting on "N passed" means a future PR that deletes or renames
+      # every run block in main.tftest.hcl can't silently turn this into a
+      # no-op check.
       - name: OpenTofu Test
-        run: tofu test
+        run: |
+          set +e
+          test_output=$(tofu test -no-color)
+          test_exit=$?
+          set -e
 
-  checkov:
-    name: Checkov (HCL)
+          printf '%s\n' "$test_output"
+
+          if [ "$test_exit" -ne 0 ]; then
+            echo "::error::tofu test failed."
+            exit 1
+          fi
+
+          if ! printf '%s' "$test_output" | grep -qE '[1-9][0-9]* passed'; then
+            echo "::error::tofu test reported zero passed runs -- vacuous pass, not real coverage. main.tftest.hcl's run blocks may be missing or renamed."
+            exit 1
+          fi
+
+  checkov-scan:
+    name: Checkov (HCL) -- policy scan
     runs-on: ubuntu-latest
 
     steps:
@@ -55,33 +84,79 @@ jobs:
       - name: Install Checkov
         run: pip install checkov==3.3.8
 
+      # This is the REAL policy gate: it fails on an actual Checkov
+      # finding. Kept as its own job, separate from the coverage assertion
+      # below, so a real future finding here shows up as its own distinct
+      # red rather than being lost inside a job everyone already expects to
+      # be red for an unrelated reason.
       - name: Run Checkov IaC Scanner
         run: checkov -d . --framework terraform --compact
 
+  checkov-coverage:
+    name: Checkov (HCL) -- coverage assertion (deliberately red, IAC-BL-3)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Install Checkov
+        run: pip install checkov==3.3.8
+
       # Checkov ships zero Cloudflare-provider policies (verified against
       # its check registry during the 2026-07-28 security review -- see
-      # infrastructure-core's docs/backlog.md IAC-BL-3). A clean run above
-      # on Cloudflare-only HCL therefore means "nothing was checked," not
-      # "nothing is wrong" -- assert a non-zero resource_count separately or
-      # this gate is theatre.
+      # infrastructure-core's docs/backlog.md IAC-BL-3). checkov-scan above
+      # can therefore pass clean while having checked nothing -- this job
+      # asserts a non-zero resource_count separately so that gap can't hide
+      # behind a green PR page.
       #
       # DELIBERATELY RED, confirmed 2026-07-29: `checkov -d . --framework
       # terraform -o json` on this module's own cloudflare_dns_record
       # resource reports `"resource_count": 0` -- Checkov's own field name,
-      # flat at the JSON's top level (not nested under a "summary" key, a
-      # wrong assumption caught by a debug run before landing this). Zero
-      # means Checkov structurally cannot see this module's only resource
-      # type, not that it found zero problems. This job fails on every PR
-      # until that changes -- see IAC-BL-3 (OPA/Conftest is the only control
-      # that could cover this surface) in infrastructure-core's
-      # docs/backlog.md. Same "deliberately left red" pattern as IAC-BL-20
-      # there: a real, currently-failing gap stays visible rather than
-      # getting quietly skipped.
+      # flat at the JSON's top level (not nested under a "summary" key).
+      # Zero means Checkov structurally cannot see this module's only
+      # resource type, not that it found zero problems. This job fails on
+      # every PR until that changes -- see IAC-BL-3 (OPA/Conftest is the
+      # only control that could cover this surface) in
+      # infrastructure-core's docs/backlog.md. Same "deliberately left red"
+      # pattern as IAC-BL-20 there.
+      #
+      # An earlier version of this step used the wrong jq path
+      # (`.summary.resource_count`, guessed rather than verified), which
+      # returned `null` -- and `[ "null" -eq 0 ]` failing inside an `if`
+      # condition is exempt from `set -e`, so the whole assertion silently
+      # passed while checking nothing. An architect review before merge
+      # caught that fixing the path alone didn't close the underlying
+      # class of bug: ANY non-numeric value would still slip through the
+      # same way. The `case` statement below rejects anything that isn't a
+      # plain non-negative integer before the numeric comparison ever
+      # runs, and capturing Checkov's JSON via command substitution (not a
+      # pipe into jq) means an invalid/empty output makes the *next* line
+      # -- the plain `resource_count=$(... | jq ...)` assignment -- fail
+      # loudly under `set -e`, rather than silently discarding Checkov's
+      # exit code the way a pipeline without `pipefail` would.
       - name: Assert Checkov actually scanned resources
         run: |
-          resource_count=$(checkov -d . --framework terraform -o json | jq '.resource_count')
+          set +e
+          checkov_json=$(checkov -d . --framework terraform -o json)
+          checkov_exit=$?
+          set -e
+
+          echo "Checkov exit code: $checkov_exit"
+
+          resource_count=$(printf '%s' "$checkov_json" | jq '.resource_count')
           echo "Checkov resource_count: $resource_count"
+
+          case "$resource_count" in
+            ''|*[!0-9]*)
+              echo "::error::Checkov produced a non-numeric resource_count ('$resource_count') -- cannot evaluate the coverage assertion. Checkov exit code was $checkov_exit. Treating as a hard failure rather than risking a silent pass."
+              exit 1
+              ;;
+          esac
+
           if [ "$resource_count" -eq 0 ]; then
             echo "::error::Checkov scanned zero resources -- Checkov ships zero Cloudflare-provider policies, so this module's cloudflare_dns_record resource is structurally invisible to it. Deliberately failing rather than reporting a vacuous pass. See IAC-BL-3 in infrastructure-core's docs/backlog.md."
             exit 1
           fi
+
+          echo "Checkov scanned $resource_count resource(s) -- coverage assertion passes. This job is expected to stay red until IAC-BL-3 (OPA/Conftest) is worked; a green result here is itself a signal something changed and is worth a second look."
