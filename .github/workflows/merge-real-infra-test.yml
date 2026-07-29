@@ -1,0 +1,68 @@
+name: Real Infrastructure Test (merge-time)
+
+# Sprint 04 Task 5 (infrastructure-core plan §5's "Module Merge" row): on merge to
+# main, run `tofu test` against a real, disposable scratch zone -- provisioning and
+# destroying real records to prove the module works against the live Cloudflare API,
+# not just main.tftest.hcl's mock. Scratch zone: grovesknows.com (IAC-D15). Credential
+# is a TEMPORARY interim bridge (see infrastructure-core .ai/state.json
+# notes.iac_bl_25_interim_credential_plan_2026_07_29_VERIFIED) while IAC-BL-25's real
+# account transfer is still blocked on Cloudflare's 10-day domain-age rule -- only the
+# two secret *values* need rotating once that lands, this workflow does not change.
+#
+# workflow_dispatch is also wired so this can be re-run manually without needing a new
+# commit -- note the Infisical identity's trusted OIDC subject is pinned to
+# ref:refs/heads/main, so a manual dispatch only authenticates when run against main.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# id-token: write is required for the Infisical OIDC handshake below.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  real-infra-test:
+    name: tofu test (real Cloudflare API, disposable scratch zone)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8
+        with:
+          tofu_version: 1.11.6
+          # Same reasoning as pull-request.yml: the default wrapper masks tofu's
+          # real exit code behind step outputs.
+          tofu_wrapper: false
+
+      # This identity has read-only access to exactly one secret path
+      # (/cicd-test/**) in one environment (dev) -- see the interim-credential note
+      # cited above for the full scope of what it can and cannot reach.
+      - name: Fetch Secrets from Infisical
+        uses: Infisical/secrets-action@77ab1f4ccd183a543cb5b42435fbd181189f4995 # v1.0.16
+        with:
+          env-slug: "dev"
+          project-slug: "terraform-cloudflare-dns"
+          method: "oidc"
+          identity-id: "bad721bb-65bd-4289-b1c5-828c245e8577"
+          secret-path: "/cicd-test/"
+          recursive: true
+
+      - name: OpenTofu Init
+        run: tofu init
+
+      # Runs realinfra.tftest.hcl only -- main.tftest.hcl (mocked) already runs on
+      # every PR via pull-request.yml and needs no credentials, so it has no reason
+      # to run again here. This is the ONLY `tofu test` invocation in this repo that
+      # touches the real Cloudflare API; OpenTofu's test framework destroys
+      # everything it creates when the file finishes, so no manual teardown step is
+      # needed.
+      - name: Real Infrastructure Test
+        env:
+          TF_VAR_zone_id: ${{ env.CLOUDFLARE_ZONE_ID }}
+        run: tofu test -filter=realinfra.tftest.hcl
