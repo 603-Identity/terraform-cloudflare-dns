@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # cloudflare provider is deliberately pinned to exactly 5.22.0 (IAC-D12) --
+  # Dependabot opening a PR when a newer version ships is still useful, it
+  # just always needs a deliberate human decision to bump the pin, not an
+  # auto-merge.
+  - package-ecosystem: "terraform"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
