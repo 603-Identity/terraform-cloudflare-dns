@@ -1,0 +1,106 @@
+# way-of-working plugin contract for this repo.
+# See: reference/project-schema.md in the way-of-working plugin for the full key reference.
+#
+# Every value below was read from this repo as it actually is on 2026-07-30 -- the check
+# names come from .github/workflows/pull-request.yml's job `name:` fields, the gate commands
+# from that workflow's run steps, and the ruleset block from a live API call. Nothing here
+# was copied from a sibling repo's file.
+#
+# NOTE on the nulls: this is a single-module repo with no deep record of its own -- no docs/,
+# no sprints/, no decisions log. Its roadmap, decisions, and backlog all live in
+# 603-Identity/infrastructure-core (IAC-D13 gave this repo its dependabot.yml; IAC-BL-23 and
+# IAC-BL-24 are findings ABOUT this repo recorded THERE). The schema's paths are
+# repo-relative and cannot express "in a sibling repo", so those keys are null: a null is a
+# decision the skills handle cleanly, where a wrong path would send them reading a file that
+# does not exist. See the upstream issue on a cross-repo record seam.
+
+# ── identity ─────────────────────────────────────────────────────────────────
+repo: 603-Identity/terraform-cloudflare-dns
+pr_base: main
+
+# ── the deep record ──────────────────────────────────────────────────────────
+roadmap: null        # none here; the migration roadmap is infrastructure-core's.
+sprints_dir: null    # sprints are run in infrastructure-core, not in the module repo.
+threat_model: null   # no threat model doc in this repo or a sibling one to point at.
+
+decisions:
+  log: null          # IAC-D* decisions affecting this repo are logged in
+                     # infrastructure-core/docs/iac_migration_roadmap.md.
+  prefix: IAC-D      # the org-wide prefix, so a new decision is numbered in that series
+                     # rather than starting a competing one.
+
+backlog:
+  kind: file         # NOT github_issues -- this repo does not use issues for findings.
+  path: null         # the file is infrastructure-core/docs/backlog.md, cross-repo and so
+                     # unreachable from here. Skills take the no-file branch.
+  item_prefix: IAC-BL-
+
+# README.md is the only prose in the repo, and it is load-bearing: it carries the module's
+# usage contract (the `source = git::...?ref=` example consumers copy).
+load_bearing_docs:
+  - README.md
+
+# ── what counts as a behavior change ─────────────────────────────────────────
+# The .tftest.hcl files are included deliberately: they are this module's only coverage, so
+# a diff that edits or deletes a run block changes what is asserted about behavior even
+# when no .tf line moves. The PR gate's "N passed" assertion exists for that same reason.
+code_paths:
+  - "*.tf"
+  - "*.tftest.hcl"
+  - .github/workflows/
+
+# ── the local green gate ─────────────────────────────────────────────────────
+# A local pre-check, not the gate of record -- CI on the PR is. Mirrors pull-request.yml's
+# tofu-test job.
+#
+# `-backend=false` where CI runs a plain `tofu init`: there is no backend block in
+# versions.tf, so the two are equivalent here, and -backend=false additionally keeps a
+# local run from inheriting a stale backend record left by a previous init.
+#
+# `-filter=main.tftest.hcl` is NOT optional. Without it `tofu test` picks up
+# realinfra.tftest.hcl too, which has no mock_provider and needs the real Cloudflare
+# credential that exists only in merge-real-infra-test.yml's job. An unfiltered local run
+# fails reaching for a credential the developer does not have -- the same mismatch that
+# broke PR #4's first CI run.
+#
+# `cwd: .` is stated rather than left implicit: the schema's rule is that an absent key is an
+# unanswered question, not a default. The module is flat at the repo root, so "." is the
+# answer -- but it is an answer, not an omission.
+gates:
+  green:
+    - { cwd: ".", run: tofu fmt -check -recursive }
+    - { cwd: ".", run: "tofu init -backend=false && tofu validate" }
+    - { cwd: ".", run: "tofu test -filter=main.tftest.hcl" }
+
+# ── branch protection ────────────────────────────────────────────────────────
+# GitHub Free + private repo returns 403 on the rulesets API ("Upgrade to GitHub Pro or make
+# this repository public") -- verified live on 2026-07-30, the same response
+# infrastructure-core records under IAC-D3. There is NO server-side enforcement today, so
+# required_checks below is informational only: it names the three jobs pull-request.yml
+# actually produces.
+#
+# merge-real-infra-test.yml is deliberately absent -- it triggers on push to main, not on
+# pull_request, so it is not a PR check and listing it would report a gate that never runs
+# on the diff under review.
+#
+# NOTE: "Checkov (HCL) -- coverage assertion" is EXPECTED RED until IAC-BL-3 is resolved.
+# If server-side enforcement is ever enabled, it must not be added as a blocking check in
+# that state.
+ruleset:
+  name: null
+  rule_types: []
+  required_checks:
+    - "Mocked tofu test"
+    - "Checkov (HCL) -- policy scan"
+    - "Checkov (HCL) -- coverage assertion (deliberately red, IAC-BL-3)"
+
+# ── the fresh-session review gate ────────────────────────────────────────────
+review:
+  ci_gate: null   # no architect-review CI gate configured for this repo.
+
+# ── agents ───────────────────────────────────────────────────────────────────
+agents:
+  enabled: [architect, coder, security-critic, docs-consistency]
+models:
+  architect: opus
+  coder: sonnet
