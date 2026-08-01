@@ -9,16 +9,24 @@ name: Real Infrastructure Test (merge-time)
 # account transfer is still blocked on Cloudflare's 10-day domain-age rule -- only the
 # two secret *values* need rotating once that lands, this workflow does not change.
 #
+# Sprint 08 Task 8 (infrastructure-core): moved off Infisical (identity
+# bad721bb-...) onto AWS SSM Parameter Store, via a plan-read-shaped role
+# (terraform-cloudflare-dns-cicd-test-read, infrastructure-core's
+# bootstrap/main.tf) scoped to this workflow's own live-probed OIDC subject --
+# same store, same shape, as infrastructure-core's own pull-request.yml
+# (Sprint 08 Task 5), authored for a second, independent repo rather than
+# sharing that role or parameter path.
+#
 # workflow_dispatch is also wired so this can be re-run manually without needing a new
-# commit -- note the Infisical identity's trusted OIDC subject is pinned to
-# ref:refs/heads/main, so a manual dispatch only authenticates when run against main.
+# commit -- the trusted OIDC subject is pinned to ref:refs/heads/main, so a manual
+# dispatch only authenticates when run against main.
 on:
   push:
     branches:
       - main
   workflow_dispatch:
 
-# id-token: write is required for the Infisical OIDC handshake below.
+# id-token: write is required for the AWS OIDC handshake below.
 permissions:
   contents: read
   id-token: write
@@ -40,18 +48,95 @@ jobs:
           # real exit code behind step outputs.
           tofu_wrapper: false
 
-      # This identity has read-only access to exactly one secret path
-      # (/cicd-test/**) in one environment (dev) -- see the interim-credential note
-      # cited above for the full scope of what it can and cannot reach.
-      - name: Fetch Secrets from Infisical
-        uses: Infisical/secrets-action@77ab1f4ccd183a543cb5b42435fbd181189f4995 # v1.0.16
+      # This role's policy grants exactly ssm:GetParameter on these two
+      # parameters plus kms:Decrypt on the one key that protects the token --
+      # infrastructure-core's bootstrap/main.tf (Sprint 08 Task 8), guarded by
+      # that repo's gates.green from ever widening silently.
+      # role-session-name/role-duration-seconds: this job needs the role for
+      # two `aws ssm get-parameter` calls, not the ~1 hour default duration
+      # -- found by /critic-gate's security-critic; a shorter, named session
+      # also gives CloudTrail something more specific than the action's
+      # default "GitHubActions" session name to attribute these calls to.
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
-          env-slug: "dev"
-          project-slug: "terraform-cloudflare-dns"
-          method: "oidc"
-          identity-id: "bad721bb-65bd-4289-b1c5-828c245e8577"
-          secret-path: "/cicd-test/"
-          recursive: true
+          role-to-assume: arn:aws:iam::566995725962:role/terraform-cloudflare-dns-cicd-test-read
+          aws-region: us-east-1
+          role-session-name: tfcf-dns-merge-real-infra-test
+          role-duration-seconds: 900
+
+      - name: Fetch Cloudflare API token from SSM
+        run: |
+          token="$(aws ssm get-parameter \
+            --name /terraform-cloudflare-dns/cicd-test/cloudflare_api_token \
+            --with-decryption \
+            --query 'Parameter.Value' \
+            --output text)"
+
+          # Same masking-safety reasoning as infrastructure-core's
+          # pull-request.yml: reject a value containing any non-printable
+          # byte before it ever reaches ::add-mask::/$GITHUB_ENV, since a
+          # multi-line value would defeat the mask and inject arbitrary env
+          # vars via $GITHUB_ENV's KEY=value-per-line form. Also reject
+          # empty -- an AWS-CLI failure can't reach this line (bash's -e
+          # default aborts the command-substitution assignment first,
+          # verified by /critic-gate), but an empty/`None` parameter value
+          # otherwise fails silently deep inside `tofu test` instead of here.
+          case "$token" in
+            "")
+              echo "::error::SSM parameter value is empty -- refusing to export it." >&2
+              exit 1
+              ;;
+            *[![:print:]]*)
+              echo "::error::SSM parameter value contains a non-printable byte -- refusing to export it." >&2
+              exit 1
+              ;;
+          esac
+
+          echo "::add-mask::$token"
+          echo "CLOUDFLARE_API_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Fetch Cloudflare zone ID from SSM
+        run: |
+          zone_id="$(aws ssm get-parameter \
+            --name /terraform-cloudflare-dns/cicd-test/cloudflare_zone_id \
+            --query 'Parameter.Value' \
+            --output text)"
+
+          # Not a secret, so no ::add-mask:: -- but the SAME non-printable
+          # check as the token above still applies, and for the same
+          # reason: this value reaches $GITHUB_ENV in a job that, one step
+          # above, just loaded a live Cloudflare API token and an AWS
+          # session into the same environment. A multi-line value here
+          # would inject arbitrary env vars into every later step
+          # (OpenTofu Init, Real Infrastructure Test) regardless of whether
+          # the injected value itself is secret. Found missing here by two
+          # independent /critic-gate security-critic passes.
+          case "$zone_id" in
+            "")
+              echo "::error::SSM parameter value is empty -- refusing to export it." >&2
+              exit 1
+              ;;
+            *[![:print:]]*)
+              echo "::error::SSM parameter value contains a non-printable byte -- refusing to export it." >&2
+              exit 1
+              ;;
+          esac
+
+          echo "CLOUDFLARE_ZONE_ID=$zone_id" >> "$GITHUB_ENV"
+
+      # Both SSM fetches are done -- blank the AWS session out of the job's
+      # environment rather than let it sit live through `tofu init` (fetches
+      # a provider plugin over the network) and `tofu test` (executes
+      # provider code and this run's .tftest.hcl). Neither step needs AWS
+      # credentials; this bounds how much of the job can reach them if
+      # either one turns out to be compromised. Found by /critic-gate's
+      # security-critic.
+      - name: Clear AWS credentials from the job environment
+        run: |
+          echo "AWS_ACCESS_KEY_ID=" >> "$GITHUB_ENV"
+          echo "AWS_SECRET_ACCESS_KEY=" >> "$GITHUB_ENV"
+          echo "AWS_SESSION_TOKEN=" >> "$GITHUB_ENV"
 
       - name: OpenTofu Init
         run: tofu init
