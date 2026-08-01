@@ -1,8 +1,8 @@
 # REAL Cloudflare API test (Sprint 04 Task 5, merge-time only). Deliberately has NO
 # mock_provider -- unlike main.tftest.hcl, this exercises the live v5 provider
 # against the disposable scratch zone grovesknows.com (IAC-D15). Authenticated via
-# CLOUDFLARE_API_TOKEN in the environment (OIDC-fetched from Infisical in CI, see
-# .github/workflows/merge-real-infra-test.yml) -- never a provider block, never a
+# CLOUDFLARE_API_TOKEN in the environment (fetched from AWS SSM Parameter Store in
+# CI via OIDC, see .github/workflows/merge-real-infra-test.yml) -- never a provider block, never a
 # credential in this file, matching the module's own "no provider block, no
 # credentials" design. zone_id comes from TF_VAR_zone_id in the environment, never
 # hardcoded here.
