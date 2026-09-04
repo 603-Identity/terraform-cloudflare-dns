@@ -1,7 +1,7 @@
 # REAL Cloudflare API test (Sprint 04 Task 5, merge-time only). Deliberately has NO
 # mock_provider -- unlike main.tftest.hcl, this exercises the live v5 provider
-# against the disposable scratch zone grovesknows.com (IAC-D15). Authenticated via
-# CLOUDFLARE_API_TOKEN in the environment (fetched from AWS SSM Parameter Store in
+# against the disposable scratch zone 603identity.site (IAC-D15, amended; IAC-D33).
+# Authenticated via CLOUDFLARE_API_TOKEN in the environment (fetched from AWS SSM Parameter Store in
 # CI via OIDC, see .github/workflows/merge-real-infra-test.yml) -- never a provider block, never a
 # credential in this file, matching the module's own "no provider block, no
 # credentials" design. zone_id comes from TF_VAR_zone_id in the environment, never
@@ -24,7 +24,7 @@
 # README with the settled result after the first real run.
 #
 # KNOWN LIMITATION: if a run's teardown does not complete (e.g. the runner is killed
-# mid-job), a stale duplicate probe record could be left in grovesknows.com until the
+# mid-job), a stale duplicate probe record could be left in 603identity.site until the
 # next successful run's apply happens to collide with it. Check the zone's record
 # list occasionally; nothing here can protect against a hard kill mid-destroy.
 
@@ -48,7 +48,7 @@ run "real_apply_settles_name_format_and_proxied_null" {
       # Full FQDN form, as a control -- expected to work under either reading of
       # the contradiction above.
       fqdn_probe = {
-        name    = "tofu-ci-realinfra-fqdn-probe.grovesknows.com"
+        name    = "tofu-ci-realinfra-fqdn-probe.603identity.site"
         type    = "TXT"
         content = "\"terraform-cloudflare-dns CI real-infra probe (FQDN arm) -- Sprint 04 Task 5, safe to delete, recreated on every merge to main\""
         ttl     = 60
@@ -70,9 +70,9 @@ run "real_apply_settles_name_format_and_proxied_null" {
       # (null preserved, or silently substituted) where the mock could not observe
       # it at all.
       mx_proxied_null_probe = {
-        name     = "tofu-ci-realinfra-mx-probe.grovesknows.com"
+        name     = "tofu-ci-realinfra-mx-probe.603identity.site"
         type     = "MX"
-        content  = "tofu-ci-realinfra-mx-target.grovesknows.com"
+        content  = "tofu-ci-realinfra-mx-target.603identity.site"
         priority = 50
         comment  = "CI-managed disposable probe (proxied-null arm) -- do not hand-edit"
       }
@@ -85,7 +85,7 @@ run "real_apply_settles_name_format_and_proxied_null" {
   }
 
   assert {
-    condition     = cloudflare_dns_record.this["fqdn_probe"].name == "tofu-ci-realinfra-fqdn-probe.grovesknows.com"
+    condition     = cloudflare_dns_record.this["fqdn_probe"].name == "tofu-ci-realinfra-fqdn-probe.603identity.site"
     error_message = "Expected the FQDN-form name to round-trip unchanged."
   }
 
