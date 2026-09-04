@@ -3,8 +3,8 @@ name: Real Infrastructure Test (merge-time)
 # Sprint 04 Task 5 (infrastructure-core plan §5's "Module Merge" row): on merge to
 # main, run `tofu test` against a real, disposable scratch zone -- provisioning and
 # destroying real records to prove the module works against the live Cloudflare API,
-# not just main.tftest.hcl's mock. Scratch zone: grovesknows.com (IAC-D15). Credential
-# is a TEMPORARY interim bridge (see infrastructure-core .ai/state.json
+# not just main.tftest.hcl's mock. Scratch zone: 603identity.site (IAC-D15, amended;
+# IAC-D33). Credential is a TEMPORARY interim bridge (see infrastructure-core .ai/state.json
 # notes.iac_bl_25_interim_credential_plan_2026_07_29_VERIFIED) while IAC-BL-25's real
 # account transfer is still blocked on Cloudflare's 10-day domain-age rule -- only the
 # two secret *values* need rotating once that lands, this workflow does not change.
