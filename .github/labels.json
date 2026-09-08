@@ -1,0 +1,22 @@
+{
+  "_comment": "Label taxonomy on three axes (type, area/*, status/*). Source of truth for scripts/sync_labels.sh. area/* names mirror terraform-microsoft365-entra (the sibling reusable-module repo) for cross-repo consistency; type/status/legacy-default labels mirror what is already live here and on infrastructure-core (IAC-BL-24).",
+  "labels": [
+    { "name": "bug",              "color": "d73a4a", "description": "Something is broken (commit type: fix)" },
+    { "name": "feature",          "color": "a2eeef", "description": "New feature or capability (commit type: feat)" },
+    { "name": "chore",            "color": "cfd3d7", "description": "Maintenance, tooling, deps (commit type: chore)" },
+    { "name": "docs",             "color": "0075ca", "description": "Documentation only (commit type: docs)" },
+    { "name": "area/module",      "color": "0e8a16", "description": "The module's own resource logic (main.tf/variables.tf/outputs.tf/versions.tf)" },
+    { "name": "area/testing",     "color": "0e8a16", "description": "main.tftest.hcl / realinfra.tftest.hcl" },
+    { "name": "area/ci",          "color": "0e8a16", "description": ".github/workflows/, CI + repo process" },
+    { "name": "status/blocked",     "color": "b60205", "description": "Blocked on an external dependency or a gate" },
+    { "name": "status/needs-human", "color": "b60205", "description": "Needs a human decision (filed by a person)" },
+    { "name": "dependencies",     "color": "0366d6", "description": "Pull requests that update a dependency file" },
+    { "name": "github_actions",   "color": "000000", "description": "Pull requests that update GitHub Actions code" },
+    { "name": "duplicate",        "color": "cfd3d7", "description": "This issue or pull request already exists" },
+    { "name": "good first issue", "color": "7057ff", "description": "Good for newcomers" },
+    { "name": "help wanted",      "color": "008672", "description": "Extra attention is needed" },
+    { "name": "invalid",          "color": "e4e669", "description": "This doesn't seem right" },
+    { "name": "question",         "color": "d876e3", "description": "Further information is requested" },
+    { "name": "wontfix",          "color": "ffffff", "description": "This will not be worked on" }
+  ]
+}
