@@ -98,4 +98,14 @@ run "real_apply_settles_name_format_and_proxied_null" {
     condition     = cloudflare_dns_record.this["mx_proxied_null_probe"].priority == 50
     error_message = "Expected the MX record's priority to round-trip through the live API."
   }
+
+  # IAC-BL-26: settles what the live API does with `proxied` on CREATE when a
+  # non-proxiable record omits it -- read-side evidence (Sprint 05 Task 1,
+  # inventorying existing records) found `false`, never `null`, but that only
+  # showed how the API represents records created outside Terraform. This is
+  # the first assertion against a live create-time round-trip.
+  assert {
+    condition     = cloudflare_dns_record.this["mx_proxied_null_probe"].proxied == false
+    error_message = "Expected the live API to substitute `false` for the omitted `proxied` on this non-proxiable MX record, matching IAC-BL-26's read-side evidence. If this fires, the create-time value was NOT `false` (most likely `null`) -- that settles IAC-BL-26 the other way. Record the settled answer in variables.tf and the README either way."
+  }
 }
