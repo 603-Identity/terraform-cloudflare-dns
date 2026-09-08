@@ -30,15 +30,19 @@ variable "zone_id" {
 # "requires a full FQDN" claim does not describe what the live API actually does. Short
 # names and "@" are both confirmed to work, not merely expected to.
 #
-# STILL OPEN: whether an omitted `proxied` on a non-proxiable type (MX/TXT) round-trips
-# as `null` or gets silently defaulted by the live API was NOT settled by the same run
-# above -- that run's MX probe (`mx_proxied_null_probe`) only asserted on `priority`, not
-# `proxied`, so the live value was never actually captured (a test-coverage gap, not a
-# negative result). `proxied` below is deliberately left nullable (no default) rather
-# than defaulting to `false`, specifically so a consumer CAN omit it on MX/TXT records --
-# forcing an explicit `false` on every record would have foreclosed the null arm of this
-# question before it could ever be tested. A follow-up run with an explicit assertion on
-# `cloudflare_dns_record.this["mx_proxied_null_probe"].proxied` would close this out.
+# RESOLVED (IAC-BL-26, 2026-09-08): whether an omitted `proxied` on a non-proxiable type
+# (MX/TXT) round-trips as `null` or gets silently defaulted by the live API was left open
+# by the run above -- its MX probe (`mx_proxied_null_probe`) asserted on `priority` but
+# not `proxied`. A follow-up assertion on
+# `cloudflare_dns_record.this["mx_proxied_null_probe"].proxied == false` settled it on the
+# first merge-time run after being added:
+# https://github.com/603-Identity/terraform-cloudflare-dns/actions/runs/34284364667.
+# The live API substitutes `false` for the omitted value on CREATE, not `null` -- matching
+# the read-side evidence from Sprint 05 Task 1 (existing records also read back `false`).
+# `proxied` below stays nullable (no default) rather than defaulting to `false` in this
+# module's own schema: leaving it unset lets the provider apply its own substitution
+# rather than the module asserting a value on the consumer's behalf, even though the two
+# now happen to agree.
 variable "records" {
   description = "DNS records to manage, keyed by a stable logical name so adding a record cannot renumber and destroy/recreate its neighbours in state."
   type = map(object({
