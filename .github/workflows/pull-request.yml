@@ -1,7 +1,18 @@
-name: PR Validation
+name: Validation
 
+# IAC-BL-23: push:branches:[main] added so main itself is validated after
+# every squash-merge, not just the PR head commit -- a squash-merge mints a
+# new commit that a pull_request-only trigger never evaluates, so a second
+# PR merged right after a first one could carry an untested tree. The
+# deliberately-red checkov-coverage job (IAC-BL-3) was split out to its own
+# PR-only workflow (checkov-coverage.yml) first, so this push trigger
+# doesn't turn main's badge permanently red -- same split as
+# infrastructure-core's IAC-BL-20.
 on:
   pull_request:
+    branches:
+      - main
+  push:
     branches:
       - main
 
@@ -92,78 +103,12 @@ jobs:
         run: pip install checkov==3.3.8
 
       # This is the REAL policy gate: it fails on an actual Checkov
-      # finding. Kept as its own job, separate from the coverage assertion
-      # below, so a real future finding here shows up as its own distinct
-      # red rather than being lost inside a job everyone already expects to
-      # be red for an unrelated reason.
+      # finding. Kept as its own job, separate from the deliberately-red
+      # coverage assertion in checkov-coverage.yml, so a real future
+      # finding here shows up as its own distinct red rather than being
+      # lost inside a job everyone already expects to be red for an
+      # unrelated reason. checkov-coverage.yml is PR-only (see its own
+      # header comment, IAC-BL-23) so this job is the only Checkov signal
+      # that also runs on push to main.
       - name: Run Checkov IaC Scanner
         run: checkov -d . --framework terraform --compact
-
-  checkov-coverage:
-    name: Checkov (HCL) -- coverage assertion (deliberately red, IAC-BL-3)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install Checkov
-        run: pip install checkov==3.3.8
-
-      # Checkov ships zero Cloudflare-provider policies (verified against
-      # its check registry during the 2026-07-28 security review -- see
-      # infrastructure-core's docs/backlog.md IAC-BL-3). checkov-scan above
-      # can therefore pass clean while having checked nothing -- this job
-      # asserts a non-zero resource_count separately so that gap can't hide
-      # behind a green PR page.
-      #
-      # DELIBERATELY RED, confirmed 2026-07-29: `checkov -d . --framework
-      # terraform -o json` on this module's own cloudflare_dns_record
-      # resource reports `"resource_count": 0` -- Checkov's own field name,
-      # flat at the JSON's top level (not nested under a "summary" key).
-      # Zero means Checkov structurally cannot see this module's only
-      # resource type, not that it found zero problems. This job fails on
-      # every PR until that changes -- see IAC-BL-3 (OPA/Conftest is the
-      # only control that could cover this surface) in
-      # infrastructure-core's docs/backlog.md. Same "deliberately left red"
-      # pattern as IAC-BL-20 there.
-      #
-      # An earlier version of this step used the wrong jq path
-      # (`.summary.resource_count`, guessed rather than verified), which
-      # returned `null` -- and `[ "null" -eq 0 ]` failing inside an `if`
-      # condition is exempt from `set -e`, so the whole assertion silently
-      # passed while checking nothing. An architect review before merge
-      # caught that fixing the path alone didn't close the underlying
-      # class of bug: ANY non-numeric value would still slip through the
-      # same way. The `case` statement below rejects anything that isn't a
-      # plain non-negative integer before the numeric comparison ever
-      # runs, and capturing Checkov's JSON via command substitution (not a
-      # pipe into jq) means an invalid/empty output makes the *next* line
-      # -- the plain `resource_count=$(... | jq ...)` assignment -- fail
-      # loudly under `set -e`, rather than silently discarding Checkov's
-      # exit code the way a pipeline without `pipefail` would.
-      - name: Assert Checkov actually scanned resources
-        run: |
-          set +e
-          checkov_json=$(checkov -d . --framework terraform -o json)
-          checkov_exit=$?
-          set -e
-
-          echo "Checkov exit code: $checkov_exit"
-
-          resource_count=$(printf '%s' "$checkov_json" | jq '.resource_count')
-          echo "Checkov resource_count: $resource_count"
-
-          case "$resource_count" in
-            ''|*[!0-9]*)
-              echo "::error::Checkov produced a non-numeric resource_count ('$resource_count') -- cannot evaluate the coverage assertion. Checkov exit code was $checkov_exit. Treating as a hard failure rather than risking a silent pass."
-              exit 1
-              ;;
-          esac
-
-          if [ "$resource_count" -eq 0 ]; then
-            echo "::error::Checkov scanned zero resources -- Checkov ships zero Cloudflare-provider policies, so this module's cloudflare_dns_record resource is structurally invisible to it. Deliberately failing rather than reporting a vacuous pass. See IAC-BL-3 in infrastructure-core's docs/backlog.md."
-            exit 1
-          fi
-
-          echo "Checkov scanned $resource_count resource(s) -- coverage assertion passes. This job is expected to stay red until IAC-BL-3 (OPA/Conftest) is worked; a green result here is itself a signal something changed and is worth a second look."
