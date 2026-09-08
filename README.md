@@ -54,7 +54,7 @@ Each `records` entry is `{ name, type, content, ttl, proxied, priority, comment 
 | `type` | `string` | n/a | Required. |
 | `content` | `string` | n/a | Required. |
 | `ttl` | `number` | `1` | `1` = Cloudflare "automatic". |
-| `proxied` | `bool` | `null` | Only meaningful for proxiable types (`A`/`AAAA`/`CNAME`). Left unset (not forced to `false`) on other types so the provider owns the value -- see `variables.tf`. |
+| `proxied` | `bool` | `null` | Only meaningful for proxiable types (`A`/`AAAA`/`CNAME`). Left unset (not forced to `false`) on other types so the provider owns the value -- confirmed the live API substitutes `false`, not `null`, when omitted on create (IAC-BL-26, 2026-09-08) -- see `variables.tf`. |
 | `priority` | `number` | `null` | Only meaningful for types like `MX` that use it. |
 | `comment` | `string` | `null` | Optional freeform note. |
 
