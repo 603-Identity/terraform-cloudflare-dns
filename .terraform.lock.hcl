@@ -1,7 +1,7 @@
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentofu.org/cloudflare/cloudflare" {
+provider "registry.terraform.io/cloudflare/cloudflare" {
   version     = "5.22.0"
   constraints = "5.22.0"
   hashes = [
