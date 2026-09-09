@@ -95,8 +95,17 @@ ruleset:
     - "Checkov (HCL) -- coverage assertion (deliberately red, IAC-BL-3)"
 
 # ── the fresh-session review gate ────────────────────────────────────────────
+# Added infrastructure-core#476 step 3: architect-review-gate.yml copied from
+# terraform-microsoft365-entra's (the most recent copy of the pattern). Not yet in
+# `ruleset.required_checks` above -- that's step 4 (infrastructure-core#456/#476), which
+# waits for this workflow to have run live on a real PR first, same staged rollout
+# terraform-microsoft365-entra used (shipped unenforced, live-verified, only then made
+# required).
 review:
-  ci_gate: null   # no architect-review CI gate configured for this repo.
+  ci_gate:
+    check: architect-review
+    header: "**Opus/Architect HITL review (automated)**"
+    attestation: "*Fresh-session review: this session did not author the diff.*"
 
 # ── agents ───────────────────────────────────────────────────────────────────
 agents:
