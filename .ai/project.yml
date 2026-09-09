@@ -21,7 +21,13 @@ pr_base: main
 # ── the deep record ──────────────────────────────────────────────────────────
 roadmap: null        # none here; the migration roadmap is infrastructure-core's.
 sprints_dir: null    # sprints are run in infrastructure-core, not in the module repo.
-threat_model: null   # no threat model doc in this repo or a sibling one to point at.
+threat_model: docs/threat_model.md   # untrusted inputs, sinks, credential holders,
+                           # boundaries meant to hold. Added infrastructure-core#476 step 1 --
+                           # a dedicated file, not a README section, so security-critic never
+                           # has to extract a scannable list from usage prose first, same
+                           # reasoning terraform-microsoft365-entra's and infrastructure-core's
+                           # own docs/threat_model.md were split out for. README.md points into
+                           # it rather than duplicating it.
 
 decisions:
   log: null          # IAC-D* decisions affecting this repo are logged in
@@ -35,10 +41,12 @@ backlog:
                      # unreachable from here. Skills take the no-file branch.
   item_prefix: IAC-BL-
 
-# README.md is the only prose in the repo, and it is load-bearing: it carries the module's
-# usage contract (the `source = git::...?ref=` example consumers copy).
+# README.md carries the module's usage contract (the `source = git::...?ref=` example
+# consumers copy). docs/threat_model.md is the dedicated threat-model doc README.md points
+# into rather than duplicating (see `threat_model` above). Both are load-bearing.
 load_bearing_docs:
   - README.md
+  - docs/threat_model.md
 
 # ── what counts as a behavior change ─────────────────────────────────────────
 # The .tftest.hcl files are included deliberately: they are this module's only coverage, so
