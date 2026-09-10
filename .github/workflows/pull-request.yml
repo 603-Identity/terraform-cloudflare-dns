@@ -112,3 +112,31 @@ jobs:
       # that also runs on push to main.
       - name: Run Checkov IaC Scanner
         run: checkov -d . --framework terraform --compact
+
+  secret-scan:
+    name: Secret scan (detect-secrets)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # infrastructure-core#476 step 2. THE VERSION TRAP: `detect-secrets` on PATH
+      # is not Yelp's upstream -- it is **bc-detect-secrets**, Bridgecrew's fork,
+      # which REJECTS a baseline written by upstream 1.5.0 and vice versa. Pinned
+      # explicitly here (not left to install transitively via checkov) so a future
+      # checkov bump can't silently move this version out from under
+      # .secrets.baseline -- same reasoning as infrastructure-core's gates-green.yml.
+      - name: Install detect-secrets
+        run: pip install bc-detect-secrets==1.5.47
+
+      # SAME MECHANISM AS the pre-commit hook (.pre-commit-config.yaml),
+      # deliberately, against the SAME baseline -- not a second, weaker copy.
+      # `git ls-files -z` scopes this to tracked files only.
+      #
+      # THIS IS PR-TIME, NOT PUSH-TIME. A secret this catches has already reached
+      # GitHub's servers and must be rotated, not just removed -- see
+      # docs/threat_model.md. GitHub's own secret scanning + push protection
+      # (free on this public repo) is the push-time half.
+      - name: Scan tracked files against the secrets baseline
+        run: git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
