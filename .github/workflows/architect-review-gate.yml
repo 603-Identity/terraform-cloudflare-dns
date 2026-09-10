@@ -33,6 +33,11 @@ name: Architect Review Gate
 # never collides with, or gets mistaken for, the explicitly-posted status this workflow
 # fully controls. `architect-review` -- the context this repo's ruleset will name once step 4
 # lands -- is that explicit status, never the job's own implicit one.
+#
+# LIVE-VERIFIED (infrastructure-core#476 step 4 prerequisite, PR #27, 2026-09-10): all three
+# transitions confirmed on a real PR -- red with no review posted, green once a qualifying
+# comment landed after the head commit, and red again once a new push invalidated it. Only
+# the first of these had been checked before (PR #25, which introduced this workflow).
 
 on:
   pull_request:
