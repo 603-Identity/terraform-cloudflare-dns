@@ -115,11 +115,23 @@ jobs:
       # which IS caught by `set -e` on failure. A required check that fails OPEN on a
       # transient API error -- silently treating "couldn't look" as "nothing to require" --
       # would be exactly the defect this org's other workflows are written to avoid.
+      # security-critic finding (PR #28 critic-gate pass, 2026-09-10): `.filename` alone
+      # misses a renamed file's OLD path. GitHub's PR-files API omits `previous_filename`
+      # entirely on a non-renamed entry, but on one it classifies `status: "renamed"` (its
+      # own content-similarity heuristic, not a fixed threshold this workflow controls) it
+      # reports ONLY the new path in `.filename` -- the old path exists solely in
+      # `.previous_filename`. Renaming `.ai/project.yml` (or `.pre-commit-config.yaml` /
+      # `.secrets.baseline`) to any other name, with an edit similar enough to still read as
+      # a rename, would leave `touches` at 0 for a change to the file whose own header
+      # comment above calls it "the source of truth" for this exact gate -- silently
+      # skipping the required review for the one file that could otherwise weaken it
+      # unreviewed. `*.tf`/`.github/workflows/*` are glob patterns and already tolerate a
+      # rename to another matching name; only the three exact-path entries were exposed.
       - name: Does this PR touch code_paths?
         id: scope
         run: |
           set -euo pipefail
-          files="$(gh api "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/files" --paginate --jq '.[].filename')"
+          files="$(gh api "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')"
           touches=0
           while IFS= read -r f; do
             case "$f" in
