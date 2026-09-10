@@ -102,40 +102,43 @@ gates:
     - { cwd: ".", run: "git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline" }
 
 # ── branch protection ────────────────────────────────────────────────────────
-# GitHub Free + private repo returns 403 on the rulesets API ("Upgrade to GitHub Pro or make
-# this repository public") -- true as of 2026-07-30, the same response infrastructure-core
-# records under IAC-D3. The org has been Team since 2026-08-07, so rulesets are now
-# available (infrastructure-core#456) -- required_checks below is still informational only
-# until that ruleset is actually created (infrastructure-core#476 step 4): it names the PR
-# jobs this repo's workflows actually produce.
+# LIVE as of 2026-09-10 (infrastructure-core#456, infrastructure-core#476 step 4):
+# `main-required-checks` (ruleset id 22782796), `enforcement: active`, `bypass_actors: []`
+# -- verified live via `GET /repos/603-Identity/terraform-cloudflare-dns/rules/branches/main`,
+# same read-back discipline as terraform-microsoft365-entra's own ruleset. Same shape as that
+# repo's: a `pull_request` rule plus a `required_status_checks` rule naming the contexts
+# below verbatim, read from each workflow's own `name:` field, not typed from memory
+# (IAC-D14's absent-check trap).
+#
+# GitHub Free + private repo returned 403 on the rulesets API ("Upgrade to GitHub Pro or
+# make this repository public") -- true as of 2026-07-30, the same response
+# infrastructure-core records under IAC-D3. The org has been Team since 2026-08-07, which is
+# what made the above possible.
 #
 # merge-real-infra-test.yml is deliberately absent -- it triggers on push to main, not on
 # pull_request, so it is not a PR check and listing it would report a gate that never runs
 # on the diff under review.
 #
-# "architect-review" (architect-review-gate.yml, infrastructure-core#476 step 3) is
-# deliberately absent too, until it has been live-verified on a real PR -- same staged
-# rollout terraform-microsoft365-entra used.
+# "architect-review" (architect-review-gate.yml, infrastructure-core#476 step 3) went in
+# only after being live-verified on a real PR (#25's red-with-no-review half, #27's full
+# red -> green -> red cycle) -- same staged rollout terraform-microsoft365-entra used.
 #
-# NOTE: "Checkov (HCL) -- coverage assertion" is EXPECTED RED until IAC-BL-3 is resolved.
-# If server-side enforcement is ever enabled, it must not be added as a blocking check in
-# that state.
+# "Checkov (HCL) -- coverage assertion" is DELIBERATELY EXCLUDED and must stay that way
+# until IAC-BL-3 is resolved -- it is EXPECTED RED on every PR (checkov ships zero
+# Cloudflare-provider policies), and including it here would block every merge forever.
 ruleset:
-  name: null
-  rule_types: []
+  name: main-required-checks
+  rule_types: [pull_request, required_status_checks]
   required_checks:
     - "Mocked tofu test"
     - "Checkov (HCL) -- policy scan"
-    - "Checkov (HCL) -- coverage assertion (deliberately red, IAC-BL-3)"
     - "Secret scan (detect-secrets)"
+    - "architect-review"
 
 # ── the fresh-session review gate ────────────────────────────────────────────
-# Added infrastructure-core#476 step 3: architect-review-gate.yml copied from
-# terraform-microsoft365-entra's (the most recent copy of the pattern). Not yet in
-# `ruleset.required_checks` above -- that's step 4 (infrastructure-core#456/#476), which
-# waits for this workflow to have run live on a real PR first, same staged rollout
-# terraform-microsoft365-entra used (shipped unenforced, live-verified, only then made
-# required).
+# architect-review-gate.yml copied from terraform-microsoft365-entra's (the most recent
+# copy of the pattern), infrastructure-core#476 step 3. Live-verified on real PRs (see
+# `ruleset` above) and now a required check.
 review:
   ci_gate:
     check: architect-review
