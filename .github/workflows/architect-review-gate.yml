@@ -6,8 +6,7 @@ name: Architect Review Gate
 # review.ci_gate.header/.attestation in .ai/project.yml: this is a literal substring match,
 # not an intent match, and paraphrasing either string breaks the gate silently (it reports
 # red, not "gate misconfigured"). If either value is ever renamed, change it here, in
-# .ai/project.yml, and (once added) in ruleset.required_checks together -- never one at a
-# time.
+# .ai/project.yml, and in ruleset.required_checks together -- never one at a time.
 #
 # Re-evaluates on: a new/updated PR (a new head commit invalidates any prior review -- the
 # job re-derives head_sha fresh every run, it never trusts a cached value), a new PR
@@ -31,8 +30,13 @@ name: Architect Review Gate
 # something OTHER than `architect-review` (see `name:` below) so its own auto-generated
 # check-run (which DOES still inherit the wrong-SHA behavior for non-pull_request triggers)
 # never collides with, or gets mistaken for, the explicitly-posted status this workflow
-# fully controls. `architect-review` -- the context this repo's ruleset will name once step 4
-# lands -- is that explicit status, never the job's own implicit one.
+# fully controls. `architect-review` -- the context this repo's ruleset names -- is that
+# explicit status, never the job's own implicit one.
+#
+# LIVE-VERIFIED (infrastructure-core#476 step 4 prerequisite, PR #27, 2026-09-10): all three
+# transitions confirmed on a real PR -- red with no review posted, green once a qualifying
+# comment landed after the head commit, and red again once a new push invalidated it. Only
+# the first of these had been checked before (PR #25, which introduced this workflow).
 
 on:
   pull_request:
@@ -96,9 +100,10 @@ jobs:
             -f description="Checking for a fresh-session review..." \
             -f target_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      # code_paths, .ai/project.yml: *.tf, *.tftest.hcl, .github/workflows/ -- mirrored here
-      # rather than parsed from the YAML at runtime, same reasoning as
-      # merge-real-infra-test.yml's own paths filter. Keep the two in sync by hand.
+      # code_paths, .ai/project.yml: *.tf, *.tftest.hcl, .github/workflows/,
+      # .ai/project.yml, .pre-commit-config.yaml, .secrets.baseline -- mirrored here rather
+      # than parsed from the YAML at runtime, same reasoning as merge-real-infra-test.yml's
+      # own paths filter. Keep the two in sync by hand.
       # `.terraform.lock.hcl` is ALSO in scope here even though code_paths itself omits it
       # (same tracked gap as terraform-microsoft365-entra's copy of this file,
       # infrastructure-core#458) -- a provider-version bump changes real runtime behavior and
@@ -109,16 +114,48 @@ jobs:
       # which IS caught by `set -e` on failure. A required check that fails OPEN on a
       # transient API error -- silently treating "couldn't look" as "nothing to require" --
       # would be exactly the defect this org's other workflows are written to avoid.
+      # security-critic finding (PR #28 critic-gate pass, 2026-09-10): `.filename` alone
+      # misses a renamed file's OLD path. GitHub's PR-files API omits `previous_filename`
+      # entirely on a non-renamed entry, but on one it classifies `status: "renamed"` (its
+      # own content-similarity heuristic, not a fixed threshold this workflow controls) it
+      # reports ONLY the new path in `.filename` -- the old path exists solely in
+      # `.previous_filename`. Every entry here was exposed to a rename that moves the path
+      # out of its pattern -- `variables.tf` renamed to `variables.tf.bak` also produced
+      # `touches=0` under the old filter, verified by simulation -- not just the three
+      # exact-path entries (`.ai/project.yml`, `.pre-commit-config.yaml`,
+      # `.secrets.baseline`), those were simply the most obviously exposed, since even a
+      # rename *within* their pattern (there being only one exact path to rename to) always
+      # falls outside it.
+      #
+      # Opus fresh-session review finding (PR #28, 2026-09-10): a *valid, empty* `[]`
+      # response from the PR-files API is not a `gh api` failure, so `set -e` does not catch
+      # it -- `files=""` still reaches the loop below, `<<< ""` runs it once on an empty
+      # line that matches nothing, and `touches` stays `0`. That would report "no code_paths
+      # touched" for a PR that has never actually been confirmed to touch none -- the same
+      # "couldn't look must never read as clean" defect the comment above this step warns
+      # against, reached via a different path than a failed call. Every real PR has at least
+      # one changed file, so an empty response here means the data could not be trusted, not
+      # that nothing changed -- guarded explicitly below rather than left to fall through.
       - name: Does this PR touch code_paths?
         id: scope
         run: |
           set -euo pipefail
-          files="$(gh api "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/files" --paginate --jq '.[].filename')"
+          files="$(gh api "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')"
+          if [ -z "$files" ]; then
+            gh api --method POST "repos/${{ github.repository }}/statuses/${{ steps.pr.outputs.head_sha }}" \
+              -f state=failure \
+              -f context="${CONTEXT}" \
+              -f description="PR files API returned no entries -- cannot evaluate scope, failing closed." \
+              -f target_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "::error::PR files API returned no entries -- every real PR has at least one changed file, so this cannot be trusted as 'nothing changed'. Failing closed rather than reporting no review required."
+            exit 1
+          fi
           touches=0
           while IFS= read -r f; do
             case "$f" in
               *.tf|*.tftest.hcl|.terraform.lock.hcl) touches=1 ;;
               .github/workflows/*) touches=1 ;;
+              .ai/project.yml|.pre-commit-config.yaml|.secrets.baseline) touches=1 ;;
             esac
           done <<< "$files"
           echo "touches=$touches" >> "$GITHUB_OUTPUT"
