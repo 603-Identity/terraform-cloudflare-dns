@@ -58,6 +58,13 @@ Each `records` entry is `{ name, type, content, ttl, proxied, priority, comment 
 | `priority` | `number` | `null` | Only meaningful for types like `MX` that use it. |
 | `comment` | `string` | `null` | Optional freeform note. |
 
+## Threat model
+
+See [`docs/threat_model.md`](docs/threat_model.md) — this module's untrusted inputs,
+dangerous sinks, credential holders, and the boundaries a reviewer should hold a diff to.
+Kept as its own file, not a section here, so `security-critic` (and any other reviewer)
+never has to extract a scannable list from usage prose first.
+
 ## Outputs
 
 | Name | Description |
