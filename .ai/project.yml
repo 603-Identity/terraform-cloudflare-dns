@@ -56,6 +56,11 @@ code_paths:
   - "*.tf"
   - "*.tftest.hcl"
   - .github/workflows/
+  # Until this entry existed, an edit to this file itself -- the source of truth for what
+  # code_paths, the local gate, the ruleset, and the review gate all are -- matched nothing
+  # here, so a change silently weakening any of them would have routed to no reviewer at
+  # all. Same reasoning infrastructure-core applies to its own .ai/project.yml entry.
+  - .ai/project.yml
   # infrastructure-core#476 step 2: until this entry existed, .pre-commit-config.yaml and
   # .secrets.baseline matched nothing in code_paths, so an edit weakening either would have
   # routed to no reviewer at all. .pre-commit-config.yaml carries the commit-time half of the

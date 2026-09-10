@@ -96,9 +96,10 @@ jobs:
             -f description="Checking for a fresh-session review..." \
             -f target_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      # code_paths, .ai/project.yml: *.tf, *.tftest.hcl, .github/workflows/ -- mirrored here
-      # rather than parsed from the YAML at runtime, same reasoning as
-      # merge-real-infra-test.yml's own paths filter. Keep the two in sync by hand.
+      # code_paths, .ai/project.yml: *.tf, *.tftest.hcl, .github/workflows/,
+      # .ai/project.yml, .pre-commit-config.yaml, .secrets.baseline -- mirrored here rather
+      # than parsed from the YAML at runtime, same reasoning as merge-real-infra-test.yml's
+      # own paths filter. Keep the two in sync by hand.
       # `.terraform.lock.hcl` is ALSO in scope here even though code_paths itself omits it
       # (same tracked gap as terraform-microsoft365-entra's copy of this file,
       # infrastructure-core#458) -- a provider-version bump changes real runtime behavior and
@@ -119,6 +120,7 @@ jobs:
             case "$f" in
               *.tf|*.tftest.hcl|.terraform.lock.hcl) touches=1 ;;
               .github/workflows/*) touches=1 ;;
+              .ai/project.yml|.pre-commit-config.yaml|.secrets.baseline) touches=1 ;;
             esac
           done <<< "$files"
           echo "touches=$touches" >> "$GITHUB_OUTPUT"
