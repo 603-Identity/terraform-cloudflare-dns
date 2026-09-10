@@ -11,3 +11,27 @@ repos:
       - id: terraform_tflint
         args:
           - --hook-config=--tf-path=tofu
+
+  # infrastructure-core#476 step 2. Catches a secret BEFORE the commit exists.
+  # Deliberately the SAME mechanism as pull-request.yml's secret-scan job, against
+  # the SAME baseline -- not a second, weaker copy.
+  #
+  # THIS LAYER IS BYPASSABLE and that is why it is not the only one: `--no-verify`
+  # skips it, and it does not exist at all for a push from another machine or an
+  # agent session. The CI job is what actually blocks a merge.
+  #
+  # `repo: local` + `language: system` ON PURPOSE, rather than pinning
+  # Yelp/detect-secrets by rev. `detect-secrets` resolves to **bc-detect-secrets
+  # 1.5.47** -- Bridgecrew's fork -- wherever `checkov==3.3.8` is installed on the
+  # same PATH, and that fork REJECTS a baseline written by upstream 1.5.0 (and vice
+  # versa). Pinning the upstream rev here would let this hook and the CI job
+  # disagree about the same file. Using the system binary keeps the hook, the
+  # baseline, and CI's explicit `bc-detect-secrets==1.5.47` pin all one version --
+  # same reasoning as infrastructure-core's own `.pre-commit-config.yaml` (IAC-BL-101).
+  - repo: local
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets (same binary and baseline as the secret-scan CI job)
+        entry: detect-secrets-hook
+        language: system
+        args: ['--baseline', '.secrets.baseline']

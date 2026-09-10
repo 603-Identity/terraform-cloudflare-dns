@@ -48,6 +48,15 @@ code_paths:
   - "*.tf"
   - "*.tftest.hcl"
   - .github/workflows/
+  # infrastructure-core#476 step 2: until this entry existed, .pre-commit-config.yaml and
+  # .secrets.baseline matched nothing in code_paths, so an edit weakening either would have
+  # routed to no reviewer at all. .pre-commit-config.yaml carries the commit-time half of the
+  # secret gate; .secrets.baseline is the sharper of the two -- it is an ALLOWLIST OF THINGS
+  # NOT TO ALERT ON, the one file in this repo where a real secret could be parked and the
+  # gate would stay green by design. Same reasoning as infrastructure-core's own
+  # code_paths entry for the identical pair (IAC-BL-101).
+  - .pre-commit-config.yaml
+  - .secrets.baseline
 
 # ── the local green gate ─────────────────────────────────────────────────────
 # A local pre-check, not the gate of record -- CI on the PR is. Mirrors pull-request.yml's
@@ -71,17 +80,29 @@ gates:
     - { cwd: ".", run: tofu fmt -check -recursive }
     - { cwd: ".", run: "tofu init -backend=false && tofu validate" }
     - { cwd: ".", run: "tofu test -filter=main.tftest.hcl" }
+    # infrastructure-core#476 step 2: the secret-scanning gate. Mirrors
+    # pull-request.yml's secret-scan job and .pre-commit-config.yaml's local hook --
+    # same binary, same baseline, on purpose, not a third weaker copy. Requires
+    # bc-detect-secrets==1.5.47 on PATH (the Bridgecrew fork, NOT Yelp's upstream --
+    # the two reject each other's baseline files). `git ls-files -z` scopes this to
+    # tracked files only.
+    - { cwd: ".", run: "git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline" }
 
 # ── branch protection ────────────────────────────────────────────────────────
 # GitHub Free + private repo returns 403 on the rulesets API ("Upgrade to GitHub Pro or make
-# this repository public") -- verified live on 2026-07-30, the same response
-# infrastructure-core records under IAC-D3. There is NO server-side enforcement today, so
-# required_checks below is informational only: it names the three jobs pull-request.yml
-# actually produces.
+# this repository public") -- true as of 2026-07-30, the same response infrastructure-core
+# records under IAC-D3. The org has been Team since 2026-08-07, so rulesets are now
+# available (infrastructure-core#456) -- required_checks below is still informational only
+# until that ruleset is actually created (infrastructure-core#476 step 4): it names the PR
+# jobs this repo's workflows actually produce.
 #
 # merge-real-infra-test.yml is deliberately absent -- it triggers on push to main, not on
 # pull_request, so it is not a PR check and listing it would report a gate that never runs
 # on the diff under review.
+#
+# "architect-review" (architect-review-gate.yml, infrastructure-core#476 step 3) is
+# deliberately absent too, until it has been live-verified on a real PR -- same staged
+# rollout terraform-microsoft365-entra used.
 #
 # NOTE: "Checkov (HCL) -- coverage assertion" is EXPECTED RED until IAC-BL-3 is resolved.
 # If server-side enforcement is ever enabled, it must not be added as a blocking check in
@@ -93,6 +114,7 @@ ruleset:
     - "Mocked tofu test"
     - "Checkov (HCL) -- policy scan"
     - "Checkov (HCL) -- coverage assertion (deliberately red, IAC-BL-3)"
+    - "Secret scan (detect-secrets)"
 
 # ── the fresh-session review gate ────────────────────────────────────────────
 review:
