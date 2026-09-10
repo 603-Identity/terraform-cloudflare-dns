@@ -123,9 +123,11 @@ gates:
 # only after being live-verified on a real PR (#25's red-with-no-review half, #27's full
 # red -> green -> red cycle) -- same staged rollout terraform-microsoft365-entra used.
 #
-# "Checkov (HCL) -- coverage assertion" is DELIBERATELY EXCLUDED and must stay that way
-# until IAC-BL-3 is resolved -- it is EXPECTED RED on every PR (checkov ships zero
-# Cloudflare-provider policies), and including it here would block every merge forever.
+# "Checkov (HCL) -- coverage assertion (deliberately red, IAC-BL-3)" (checkov-coverage.yml's
+# own job name, quoted in full -- IAC-D14's absent-check trap applies to an exclusion too, not
+# just an inclusion) is DELIBERATELY EXCLUDED and must stay that way until IAC-BL-3 is
+# resolved -- it is EXPECTED RED on every PR (checkov ships zero Cloudflare-provider
+# policies), and including it here would block every merge forever.
 ruleset:
   name: main-required-checks
   rule_types: [pull_request, required_status_checks]
