@@ -1,0 +1,13 @@
+{
+  "checkov_version": "3.3.8",
+  "failures": [],
+  "skips": [],
+  "known_invisible": [
+    {
+      "directory": ".",
+      "reason": "cloudflare_dns_record is structurally invisible to Checkov -- it ships zero Cloudflare-provider policies (verified against the upstream check registry; see checkov-coverage.yml's retired rationale).",
+      "tracking": "https://github.com/603-Identity/infrastructure-core/issues/284",
+      "review_by": "2026-12-14"
+    }
+  ]
+}

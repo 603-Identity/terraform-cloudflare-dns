@@ -4,10 +4,15 @@ name: Validation
 # every squash-merge, not just the PR head commit -- a squash-merge mints a
 # new commit that a pull_request-only trigger never evaluates, so a second
 # PR merged right after a first one could carry an untested tree. The
-# deliberately-red checkov-coverage job (IAC-BL-3) was split out to its own
-# PR-only workflow (checkov-coverage.yml) first, so this push trigger
-# doesn't turn main's badge permanently red -- same split as
-# infrastructure-core's IAC-BL-20.
+# deliberately-red checkov-coverage job (IAC-BL-3) originally had to be
+# split out to its own PR-only workflow (checkov-coverage.yml) for exactly
+# this reason -- a push:main trigger would have turned main's badge
+# permanently red, same split as infrastructure-core's old IAC-BL-20 job.
+# Sprint 15 T6 (IAC-D47) retires that split: no job in this org is designed
+# to be red, so checkov-coverage.yml is gone and the ledger-driven
+# `checkov-ledger` job below (green iff a live scan matches
+# checkov-ledger.json exactly) runs safely on both triggers -- same
+# doctrine as infrastructure-core's own Sprint 15 T4b.
 on:
   pull_request:
     branches:
@@ -103,15 +108,51 @@ jobs:
         run: pip install checkov==3.3.8
 
       # This is the REAL policy gate: it fails on an actual Checkov
-      # finding. Kept as its own job, separate from the deliberately-red
-      # coverage assertion in checkov-coverage.yml, so a real future
-      # finding here shows up as its own distinct red rather than being
-      # lost inside a job everyone already expects to be red for an
-      # unrelated reason. checkov-coverage.yml is PR-only (see its own
-      # header comment, IAC-BL-23) so this job is the only Checkov signal
-      # that also runs on push to main.
+      # finding. Kept as its own job -- Sprint 15 T6 (IAC-D47) retired the
+      # separate deliberately-red checkov-coverage.yml; the coverage
+      # question (can Checkov even see this module's resources) now lives
+      # in checkov-ledger.json's known_invisible list, evaluated by the
+      # `checkov-ledger` job below. This job's own body is UNCHANGED and
+      # still required until T7 (PR-B) folds it into the ledger-driven
+      # scan, same staged sequence as infrastructure-core's T3 -> T4b.
       - name: Run Checkov IaC Scanner
         run: checkov -d . --framework terraform --compact
+
+  # ---------------------------------------------------------------------------
+  # THE LEDGER -- Sprint 15 (IAC-D47), T6, PR-A. UNENFORCED for now: staged
+  # per the sprint plan's decision 11 (memory: stage, verify, then enforce),
+  # this job lands here first, is falsified live on THIS PR with planted
+  # mutations (see the PR body), and only then (T7, PR-B) replaces
+  # `checkov-scan`'s body above and this job is deleted. Not in
+  # `required_checks` (.ai/project.yml) -- a red run here is informative,
+  # not blocking, until then.
+  #
+  # REPLACES `checkov-coverage.yml`'s deliberately-red coverage assertion
+  # (IAC-BL-3): no job in this org is designed to be red (IAC-D47).
+  # checkov-ledger.json at the repo root lists this module's root directory
+  # as `known_invisible` (`cloudflare_dns_record` is structurally invisible
+  # to Checkov -- it ships zero Cloudflare-provider policies) with a
+  # tracking issue and a review date: green iff a live Checkov scan matches
+  # the ledger EXACTLY, red on any drift -- a new finding, a vanished one, a
+  # new or changed skip, the known-invisible directory starting to produce
+  # results, a version change, or an acceptance past its review date. Same
+  # ledger-driven action, same SHA pin, as infrastructure-core's
+  # `security-scan` job -- see that repo's
+  # `.github/actions/checkov-ledger/checkov_ledger.py` module docstring for
+  # the full rationale and `sprints/15-checkov-ledger/sprint_plan.md` for
+  # the planning decisions. `#284` (IAC-BL-3, the real Cloudflare-coverage
+  # gap) stays open -- this changes how it is tracked, not whether it is
+  # fixed.
+  # ---------------------------------------------------------------------------
+  checkov-ledger:
+    name: Checkov (ledger)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: 603-Identity/checkov-ledger-action@da47eaa56584dda1f19bb8aa9bdff413b3a6f874 # v0.1.0
 
   secret-scan:
     name: Secret scan (detect-secrets)
