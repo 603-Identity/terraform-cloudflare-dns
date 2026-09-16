@@ -9,10 +9,10 @@ name: Validation
 # this reason -- a push:main trigger would have turned main's badge
 # permanently red, same split as infrastructure-core's old IAC-BL-20 job.
 # Sprint 15 T6 (IAC-D47) retires that split: no job in this org is designed
-# to be red, so checkov-coverage.yml is gone and the ledger-driven scan
-# folded into `checkov-scan` below (green iff a live scan matches
-# checkov-ledger.json exactly) runs safely on both triggers -- same
-# doctrine as infrastructure-core's own Sprint 15 T4b.
+# to be red, so checkov-coverage.yml is gone. T7 goes further and folds the
+# ledger-driven scan into `checkov-scan` below itself (green iff a live scan
+# matches checkov-ledger.json exactly), which runs safely on both triggers --
+# same doctrine as infrastructure-core's own Sprint 15 T4b.
 on:
   pull_request:
     branches:
@@ -58,9 +58,11 @@ jobs:
       # merge-time real-infrastructure test (Sprint 04 Task 5) is separate.
       #
       # `tofu test` exits 0 on "0 passed, 0 failed" just as readily as on a
-      # real pass -- the identical vacuous-pass shape as the Checkov gate
-      # below (confirmed by reproduction: an empty test directory, and a
-      # .tftest.hcl with zero run blocks, both report success). Capturing
+      # real pass (confirmed by reproduction: an empty test directory, and a
+      # .tftest.hcl with zero run blocks, both report success) -- the same
+      # vacuous-pass shape `checkov -d . --framework terraform --compact`
+      # used to have below, before Sprint 15 T7 replaced it with a
+      # ledger-compared scan that fails on drift instead. Capturing
       # output via command substitution (not a pipe) sidesteps needing
       # `set -o pipefail`/`PIPESTATUS` to get tofu's real exit code, and
       # asserting on "N passed" means a future PR that deletes or renames
@@ -103,14 +105,16 @@ jobs:
       # Ledger-driven since Sprint 15 T7 (IAC-D47) -- the SHA-pinned
       # `603-Identity/checkov-ledger-action` (built as
       # `.github/actions/checkov-ledger` in infrastructure-core's Phase 1,
-      # extracted verbatim to that public repo in infrastructure-core's T5)
-      # runs `checkov -d .` itself and evaluates the result against
-      # checkov-ledger.json at the repo root: green iff a live scan matches
-      # the ledger EXACTLY, red on any drift -- a new finding, a vanished
-      # one, a new or changed skip, the known-invisible directory starting
-      # to produce results, a version change, or an acceptance past its
-      # review date. No separate `pip install checkov` step here any more --
-      # the action installs the version its own ledger pins.
+      # extracted verbatim to that public repo in infrastructure-core's T5;
+      # see that module's `checkov_ledger.py` docstring for the full
+      # rationale) runs `checkov -d . --framework terraform` itself and
+      # evaluates the result against checkov-ledger.json at the repo root:
+      # green iff a live scan matches the ledger EXACTLY, red on any drift --
+      # a new finding, a vanished one, a new or changed skip, the
+      # known-invisible directory starting to produce results, a version
+      # change, or an acceptance past its review date. No separate
+      # `pip install checkov` step here any more -- the action reads
+      # `checkov_version` out of checkov-ledger.json and installs that.
       #
       # UNTIL T7 (2026-09-16), this step ran a plain
       # `checkov -d . --framework terraform --compact` with no ledger, while
@@ -131,15 +135,9 @@ jobs:
       - uses: 603-Identity/checkov-ledger-action@da47eaa56584dda1f19bb8aa9bdff413b3a6f874 # v0.1.0
 
   # ---------------------------------------------------------------------------
-  # THE SEPARATE LEDGER JOB IS GONE (Sprint 15 T7, 2026-09-16). FOLDED IN,
-  # NOT DELETED: T6 (PR #29) added an unenforced `checkov-ledger` job here so
-  # the ledger could be falsified live on its own PR (decision 11) without
-  # touching the required `checkov-scan` job. T7's own PR replaces that
-  # falsification with `checkov-scan`'s own green run and moves the single
-  # `uses:` step above -- nothing about the ledger action itself changed. A
-  # stray reference to a standalone `checkov-ledger` job elsewhere in this
-  # repo (docs, `gates.green` comments) is HISTORY describing T6, not a live
-  # claim about this file.
+  # THE SEPARATE `checkov-ledger` JOB IS DELETED (Sprint 15 T7, 2026-09-16),
+  # not merely disabled -- see `checkov-scan`'s own step comment above for why
+  # it existed (T6, PR #29's staged falsification) and what replaced it.
   # ---------------------------------------------------------------------------
 
   secret-scan:

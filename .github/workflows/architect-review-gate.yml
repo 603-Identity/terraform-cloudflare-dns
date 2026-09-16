@@ -102,8 +102,9 @@ jobs:
 
       # code_paths, .ai/project.yml: *.tf, *.tftest.hcl, .github/workflows/,
       # .ai/project.yml, .pre-commit-config.yaml, .secrets.baseline, checkov-ledger.json --
-      # mirrored here rather than parsed from the YAML at runtime, same reasoning as
-      # merge-real-infra-test.yml's own paths filter. Keep the two in sync by hand.
+      # mirrored here rather than parsed from the YAML at runtime (there is no shared
+      # source of truth to parse from at runtime; merge-real-infra-test.yml, for
+      # instance, has no paths filter of its own to mirror). Keep the two in sync by hand.
       # `.terraform.lock.hcl` is ALSO in scope here even though code_paths itself omits it
       # (same tracked gap as terraform-microsoft365-entra's copy of this file,
       # infrastructure-core#458) -- a provider-version bump changes real runtime behavior and

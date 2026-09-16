@@ -1,8 +1,9 @@
 # Threat model
 
 Ground truth for `security-critic` (and any other reviewer) on this module's untrusted inputs,
-dangerous sinks, credential holders, and the trust boundaries its design depends on holding. This
-file names the **what** — its own scannable list, kept separate from `README.md` so a reviewer
+dangerous sinks, credential holders, the trust boundaries its design depends on holding, and its
+one accepted, dated security gap. This file names the **what** — its own scannable list, kept
+separate from `README.md` so a reviewer
 never has to extract it from usage prose first. It points into `README.md` and this repo's
 workflow files for the **why** and the mechanics of where each boundary is actually enforced,
 rather than duplicating that detail here. Shape follows `terraform-microsoft365-entra`'s
@@ -91,8 +92,9 @@ Cloudflare token may ever appear in a log, an environment dump, or a diff a revi
   directory is structurally invisible to it — not one resource type going unscanned inside an
   otherwise-producing directory, but the whole directory producing nothing at all. Recorded as
   `checkov-ledger.json`'s one `known_invisible` row (Sprint 15, `IAC-D47`), folded into the
-  required `Checkov (HCL) -- policy scan` job as of T7 — a live scan drifting from that row (a
-  new finding, the directory starting to produce results, an acceptance past its review date)
+  required `Checkov (HCL) -- policy scan` job as of T7 — a live scan drifting from the ledger
+  (a new finding, the known-invisible directory starting to produce results, an acceptance
+  past its review date)
   still fails the check; only the specific, dated absence of policy coverage is accepted.
   Tracked by `#284` (`infrastructure-core`, OPEN). The compensating controls for this gap are
   `tofu test` (`main.tftest.hcl`'s mocked assertions on this module's own logic) and the
