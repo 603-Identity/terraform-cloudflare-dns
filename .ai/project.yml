@@ -70,6 +70,14 @@ code_paths:
   # code_paths entry for the identical pair (IAC-BL-101).
   - .pre-commit-config.yaml
   - .secrets.baseline
+  # Sprint 15 T6 (IAC-D47): checkov-ledger.json is this repo's own .secrets.baseline
+  # shape for Checkov -- an allowlist of accepted findings, sanctioned skips and
+  # known-invisible directories that must be human-reviewed, never auto-generated.
+  # infrastructure-core routed its own checkov-ledger.json here in Sprint 15 T1 after
+  # finding the identical gap (a bad edit -- a padded row, a widened pin, a deleted
+  # known_invisible entry -- would otherwise stay green by design with no critic ever
+  # routed to it); added here in the same commit that introduces the file, not after.
+  - checkov-ledger.json
 
 # ── the local green gate ─────────────────────────────────────────────────────
 # A local pre-check, not the gate of record -- CI on the PR is. Mirrors pull-request.yml's
