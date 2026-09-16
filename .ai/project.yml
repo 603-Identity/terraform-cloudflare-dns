@@ -132,10 +132,14 @@ gates:
 # red -> green -> red cycle) -- same staged rollout terraform-microsoft365-entra used.
 #
 # "Checkov (HCL) -- coverage assertion (deliberately red, IAC-BL-3)" (checkov-coverage.yml's
-# own job name, quoted in full -- IAC-D14's absent-check trap applies to an exclusion too, not
-# just an inclusion) is DELIBERATELY EXCLUDED and must stay that way until IAC-BL-3 is
-# resolved -- it is EXPECTED RED on every PR (checkov ships zero Cloudflare-provider
-# policies), and including it here would block every merge forever.
+# own job name) is GONE, not merely excluded: Sprint 15 T6 (IAC-D47) deleted
+# checkov-coverage.yml outright -- no job in this org is designed to be red. The coverage
+# question it used to assert (can Checkov even see this module's resources) now lives in
+# checkov-ledger.json's known_invisible list, folded into the required "Checkov (HCL) --
+# policy scan" job itself as of T7 (PR-B) -- there is no longer a separate ledger job to
+# list here either (the unenforced `checkov-ledger` job T6 added for staging was deleted in
+# the same PR). `#284` (the real Cloudflare-coverage gap) stays open -- this changes how it
+# is tracked, not whether it is fixed.
 ruleset:
   name: main-required-checks
   rule_types: [pull_request, required_status_checks]

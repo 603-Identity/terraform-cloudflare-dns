@@ -83,3 +83,19 @@ Cloudflare token may ever appear in a log, an environment dump, or a diff a revi
   block means `pull-request.yml`'s `tofu-test` job makes zero live Cloudflare API calls; only
   `realinfra.tftest.hcl` — filtered out of every PR-triggered run via `-filter=main.tftest.hcl`
   — touches the real API, and only from the merge-time workflow above.
+
+## Accepted gaps
+
+- **No policy scanner can see `cloudflare_dns_record`.** Checkov ships zero Cloudflare-provider
+  policies (verified against the upstream check registry), so this module's entire root
+  directory is structurally invisible to it — not one resource type going unscanned inside an
+  otherwise-producing directory, but the whole directory producing nothing at all. Recorded as
+  `checkov-ledger.json`'s one `known_invisible` row (Sprint 15, `IAC-D47`), folded into the
+  required `Checkov (HCL) -- policy scan` job as of T7 — a live scan drifting from that row (a
+  new finding, the directory starting to produce results, an acceptance past its review date)
+  still fails the check; only the specific, dated absence of policy coverage is accepted.
+  Tracked by `#284` (`infrastructure-core`, OPEN). The compensating controls for this gap are
+  `tofu test` (`main.tftest.hcl`'s mocked assertions on this module's own logic) and the
+  `architect-review` fresh-session human review gate — neither is a policy scanner, but between
+  them a change to this module's Cloudflare resources still gets tested behavior and a human
+  reviewer even though no automated policy check ever sees it.
