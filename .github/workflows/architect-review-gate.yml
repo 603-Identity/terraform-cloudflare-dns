@@ -101,9 +101,10 @@ jobs:
             -f target_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       # code_paths, .ai/project.yml: *.tf, *.tftest.hcl, .github/workflows/,
-      # .ai/project.yml, .pre-commit-config.yaml, .secrets.baseline -- mirrored here rather
-      # than parsed from the YAML at runtime, same reasoning as merge-real-infra-test.yml's
-      # own paths filter. Keep the two in sync by hand.
+      # .ai/project.yml, .pre-commit-config.yaml, .secrets.baseline, checkov-ledger.json --
+      # mirrored here rather than parsed from the YAML at runtime (there is no shared
+      # source of truth to parse from at runtime; merge-real-infra-test.yml, for
+      # instance, has no paths filter of its own to mirror). Keep the two in sync by hand.
       # `.terraform.lock.hcl` is ALSO in scope here even though code_paths itself omits it
       # (same tracked gap as terraform-microsoft365-entra's copy of this file,
       # infrastructure-core#458) -- a provider-version bump changes real runtime behavior and
@@ -121,9 +122,9 @@ jobs:
       # reports ONLY the new path in `.filename` -- the old path exists solely in
       # `.previous_filename`. Every entry here was exposed to a rename that moves the path
       # out of its pattern -- `variables.tf` renamed to `variables.tf.bak` also produced
-      # `touches=0` under the old filter, verified by simulation -- not just the three
-      # exact-path entries (`.ai/project.yml`, `.pre-commit-config.yaml`,
-      # `.secrets.baseline`), those were simply the most obviously exposed, since even a
+      # `touches=0` under the old filter, verified by simulation -- not just the exact-path
+      # entries (`.ai/project.yml`, `.pre-commit-config.yaml`, `.secrets.baseline`,
+      # `checkov-ledger.json`), those were simply the most obviously exposed, since even a
       # rename *within* their pattern (there being only one exact path to rename to) always
       # falls outside it.
       #
@@ -155,7 +156,7 @@ jobs:
             case "$f" in
               *.tf|*.tftest.hcl|.terraform.lock.hcl) touches=1 ;;
               .github/workflows/*) touches=1 ;;
-              .ai/project.yml|.pre-commit-config.yaml|.secrets.baseline) touches=1 ;;
+              .ai/project.yml|.pre-commit-config.yaml|.secrets.baseline|checkov-ledger.json) touches=1 ;;
             esac
           done <<< "$files"
           echo "touches=$touches" >> "$GITHUB_OUTPUT"

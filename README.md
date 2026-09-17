@@ -61,9 +61,9 @@ Each `records` entry is `{ name, type, content, ttl, proxied, priority, comment 
 ## Threat model
 
 See [`docs/threat_model.md`](docs/threat_model.md) — this module's untrusted inputs,
-dangerous sinks, credential holders, and the boundaries a reviewer should hold a diff to.
-Kept as its own file, not a section here, so `security-critic` (and any other reviewer)
-never has to extract a scannable list from usage prose first.
+dangerous sinks, credential holders, the boundaries a reviewer should hold a diff to, and its
+one accepted, dated security gap. Kept as its own file, not a section here, so `security-critic`
+(and any other reviewer) never has to extract a scannable list from usage prose first.
 
 ## Outputs
 

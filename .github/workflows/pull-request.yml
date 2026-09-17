@@ -9,10 +9,10 @@ name: Validation
 # this reason -- a push:main trigger would have turned main's badge
 # permanently red, same split as infrastructure-core's old IAC-BL-20 job.
 # Sprint 15 T6 (IAC-D47) retires that split: no job in this org is designed
-# to be red, so checkov-coverage.yml is gone and the ledger-driven
-# `checkov-ledger` job below (green iff a live scan matches
-# checkov-ledger.json exactly) runs safely on both triggers -- same
-# doctrine as infrastructure-core's own Sprint 15 T4b.
+# to be red, so checkov-coverage.yml is gone. T7 goes further and folds the
+# ledger-driven scan into `checkov-scan` below itself (green iff a live scan
+# matches checkov-ledger.json exactly), which runs safely on both triggers --
+# same doctrine as infrastructure-core's own Sprint 15 T4b.
 on:
   pull_request:
     branches:
@@ -58,9 +58,11 @@ jobs:
       # merge-time real-infrastructure test (Sprint 04 Task 5) is separate.
       #
       # `tofu test` exits 0 on "0 passed, 0 failed" just as readily as on a
-      # real pass -- the identical vacuous-pass shape as the Checkov gate
-      # below (confirmed by reproduction: an empty test directory, and a
-      # .tftest.hcl with zero run blocks, both report success). Capturing
+      # real pass (confirmed by reproduction: an empty test directory, and a
+      # .tftest.hcl with zero run blocks, both report success) -- the same
+      # vacuous-pass shape `checkov -d . --framework terraform --compact`
+      # used to have below, before Sprint 15 T7 replaced it with a
+      # ledger-compared scan that fails on drift instead. Capturing
       # output via command substitution (not a pipe) sidesteps needing
       # `set -o pipefail`/`PIPESTATUS` to get tofu's real exit code, and
       # asserting on "N passed" means a future PR that deletes or renames
@@ -100,59 +102,43 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Installed via pip rather than bridgecrewio/checkov-action, matching
-      # infrastructure-core's pull-request.yml: that action's pinned image is
-      # frozen at Checkov 2.0.930 (Jan 2022) regardless of the action's own
-      # tag.
-      - name: Install Checkov
-        run: pip install checkov==3.3.8
-
-      # This is the REAL policy gate: it fails on an actual Checkov
-      # finding. Kept as its own job -- Sprint 15 T6 (IAC-D47) retired the
-      # separate deliberately-red checkov-coverage.yml; the coverage
-      # question (can Checkov even see this module's resources) now lives
-      # in checkov-ledger.json's known_invisible list, evaluated by the
-      # `checkov-ledger` job below. This job's own body is UNCHANGED and
-      # still required until T7 (PR-B) folds it into the ledger-driven
-      # scan, same staged sequence as infrastructure-core's T3 -> T4b.
-      - name: Run Checkov IaC Scanner
-        run: checkov -d . --framework terraform --compact
-
-  # ---------------------------------------------------------------------------
-  # THE LEDGER -- Sprint 15 (IAC-D47), T6, PR-A. UNENFORCED for now: staged
-  # per the sprint plan's decision 11 (memory: stage, verify, then enforce),
-  # this job lands here first, is falsified live on THIS PR with planted
-  # mutations (see the PR body), and only then (T7, PR-B) replaces
-  # `checkov-scan`'s body above and this job is deleted. Not in
-  # `required_checks` (.ai/project.yml) -- a red run here is informative,
-  # not blocking, until then.
-  #
-  # REPLACES `checkov-coverage.yml`'s deliberately-red coverage assertion
-  # (IAC-BL-3): no job in this org is designed to be red (IAC-D47).
-  # checkov-ledger.json at the repo root lists this module's root directory
-  # as `known_invisible` (`cloudflare_dns_record` is structurally invisible
-  # to Checkov -- it ships zero Cloudflare-provider policies) with a
-  # tracking issue and a review date: green iff a live Checkov scan matches
-  # the ledger EXACTLY, red on any drift -- a new finding, a vanished one, a
-  # new or changed skip, the known-invisible directory starting to produce
-  # results, a version change, or an acceptance past its review date. Same
-  # ledger-driven action, same SHA pin, as infrastructure-core's
-  # `security-scan` job -- see that repo's
-  # `.github/actions/checkov-ledger/checkov_ledger.py` module docstring for
-  # the full rationale and `sprints/15-checkov-ledger/sprint_plan.md` for
-  # the planning decisions. `#284` (IAC-BL-3, the real Cloudflare-coverage
-  # gap) stays open -- this changes how it is tracked, not whether it is
-  # fixed.
-  # ---------------------------------------------------------------------------
-  checkov-ledger:
-    name: Checkov (ledger)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
+      # Ledger-driven since Sprint 15 T7 (IAC-D47) -- the SHA-pinned
+      # `603-Identity/checkov-ledger-action` (built as
+      # `.github/actions/checkov-ledger` in infrastructure-core's Phase 1,
+      # extracted verbatim to that public repo in infrastructure-core's T5;
+      # see that module's `checkov_ledger.py` docstring for the full
+      # rationale) runs `checkov -d . --framework terraform` itself and
+      # evaluates the result against checkov-ledger.json at the repo root:
+      # green iff a live scan matches the ledger EXACTLY, red on any drift --
+      # a new finding, a vanished one, a new or changed skip, the
+      # known-invisible directory starting to produce results, a version
+      # change, or an acceptance past its review date. No separate
+      # `pip install checkov` step here any more -- the action reads
+      # `checkov_version` out of checkov-ledger.json and installs that.
+      #
+      # UNTIL T7 (2026-09-16), this step ran a plain
+      # `checkov -d . --framework terraform --compact` with no ledger, while
+      # a SEPARATE, unenforced `checkov-ledger` job (T6, PR-A) ran this same
+      # ledger-driven scan for comparison -- staged per the sprint plan's
+      # decision 11 (memory: stage, verify, then enforce), falsified live on
+      # PR #29 with planted mutations. T7 folds the two into this one step
+      # and deletes that job -- same staged sequence as infrastructure-core's
+      # T3 -> T4b.
+      #
+      # `cloudflare_dns_record` remains structurally invisible to Checkov --
+      # it ships zero Cloudflare-provider policies -- so this module's root
+      # directory stays in checkov-ledger.json's `known_invisible` list
+      # (`#284`, infrastructure-core, still OPEN). `tofu test` (the
+      # `tofu-test` job above) and the `architect-review` fresh-session gate
+      # are this repo's compensating controls for that gap -- see
+      # docs/threat_model.md.
       - uses: 603-Identity/checkov-ledger-action@da47eaa56584dda1f19bb8aa9bdff413b3a6f874 # v0.1.0
+
+  # ---------------------------------------------------------------------------
+  # THE SEPARATE `checkov-ledger` JOB IS DELETED (Sprint 15 T7, 2026-09-16),
+  # not merely disabled -- see `checkov-scan`'s own step comment above for why
+  # it existed (T6, PR #29's staged falsification) and what replaced it.
+  # ---------------------------------------------------------------------------
 
   secret-scan:
     name: Secret scan (detect-secrets)
