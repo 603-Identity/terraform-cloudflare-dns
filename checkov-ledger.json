@@ -7,7 +7,7 @@
       "directory": ".",
       "reason": "cloudflare_dns_record is structurally invisible to Checkov -- it ships zero Cloudflare-provider policies (verified against the upstream check registry; tracked as IAC-D47 in infrastructure-core's docs/iac_migration_roadmap.md).",
       "tracking": "https://github.com/603-Identity/infrastructure-core/issues/284",
-      "review_by": "2026-12-14"
+      "review_by": "2027-09-14"
     }
   ]
 }
