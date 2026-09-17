@@ -17,7 +17,7 @@ terraform {
     # rather than OpenTofu's mirror.
     cloudflare = {
       source  = "registry.terraform.io/cloudflare/cloudflare"
-      version = "5.24.0"
+      version = "5.25.0"
     }
   }
 }
