@@ -265,8 +265,9 @@ jobs:
             #     required context is simply absent and the merge is blocked anyway;
             #   - the one in `Does this PR touch code_paths?` (the PR files API
             #     returning no entries) runs AFTER it, so absence is not available --
-            #     that step instead posts an explicit `state=failure` status of its
-            #     own before exiting, which is why it is still fail-closed.
+            #     the pending status from the previous step already blocks the merge,
+            #     and that step additionally posts an explicit `state=failure` status
+            #     of its own before exiting, so the block carries its reason.
             # Per IAC-D47: red means broken, not "a normal step hasn't happened yet".
             exit 0
           fi
