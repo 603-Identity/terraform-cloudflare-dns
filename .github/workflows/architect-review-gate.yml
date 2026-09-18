@@ -229,6 +229,15 @@ jobs:
               -f context="${CONTEXT}" \
               -f description="No fresh-session review posted against this commit yet." \
               -f target_url="$target_url"
+            # `gh api` writes its JSON response with NO trailing newline, so without
+            # the bare `echo` below the `::error::` line is appended to the end of that
+            # response instead of starting its own line -- and the runner parses a
+            # workflow command only at the START of a line, so it never becomes an
+            # annotation. Verified live 2026-09-18 on all four repos: the job's only
+            # annotation was the `ubuntu-latest` notice, under the old `exit 1` as well
+            # as the new `exit 0`. The claim below that this annotation "still renders"
+            # was therefore false until this `echo` was added.
+            echo
             echo "::error::No fresh-session review posted against head commit ${head_sha} (${head_date}) yet. A PR comment or review whose body contains both \"${HEADER}\" and \"${ATTESTATION}\", posted at or after that commit, is required before this check can pass."
             # Exit 0, NOT 1 -- deliberate. Enforcement lives ENTIRELY in the
             # `${CONTEXT}` commit status posted immediately above, which is the context
