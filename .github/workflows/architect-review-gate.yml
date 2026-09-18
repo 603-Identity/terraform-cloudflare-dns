@@ -257,9 +257,16 @@ jobs:
             #
             # The `::error::` annotation above still renders in the run summary, so the
             # reason a PR is blocked stays visible. The other `exit 1`s in this job are
-            # unchanged -- those are genuine breakage (an unresolvable PR number or head
-            # SHA) and they fail closed: the pending status is posted AFTER that step,
-            # so the required context is simply absent and the merge is blocked anyway.
+            # unchanged -- all of them genuine breakage, and all of them fail closed,
+            # though by TWO different mechanisms and this repo is the only one of the
+            # four that has both:
+            #   - the two in `Resolve PR number and head commit` (an unresolvable PR
+            #     number or head SHA) run BEFORE the pending status is posted, so the
+            #     required context is simply absent and the merge is blocked anyway;
+            #   - the one in `Does this PR touch code_paths?` (the PR files API
+            #     returning no entries) runs AFTER it, so absence is not available --
+            #     that step instead posts an explicit `state=failure` status of its
+            #     own before exiting, which is why it is still fail-closed.
             # Per IAC-D47: red means broken, not "a normal step hasn't happened yet".
             exit 0
           fi
