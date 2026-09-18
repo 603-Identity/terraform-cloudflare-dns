@@ -230,5 +230,27 @@ jobs:
               -f description="No fresh-session review posted against this commit yet." \
               -f target_url="$target_url"
             echo "::error::No fresh-session review posted against head commit ${head_sha} (${head_date}) yet. A PR comment or review whose body contains both \"${HEADER}\" and \"${ATTESTATION}\", posted at or after that commit, is required before this check can pass."
-            exit 1
+            # Exit 0, NOT 1 -- deliberate. Enforcement lives ENTIRELY in the
+            # `${CONTEXT}` commit status posted immediately above, which is the context
+            # `ruleset.required_checks` names; this job's own exit code enforces nothing.
+            # Failing here only reddened the job's implicit, job-name-derived check-run
+            # (`architect-review-runner`), which is deliberately NOT a required check --
+            # so it never blocked a merge, it just left every reviewed PR sitting at
+            # `mergeStateStatus: UNSTABLE` instead of `CLEAN`.
+            #
+            # CORRECTED (2026-09-18): that red was previously described as "transient --
+            # it clears when the fresh-session review is posted". It does NOT. The run
+            # that finally finds the review is `issue_comment`-triggered, and per this
+            # file's own DESIGN NOTE its check-run attaches to the DEFAULT BRANCH, not
+            # the PR head -- so the PR's own red runner check-run is never replaced.
+            # Clearing it took a manual `gh run rerun` of the original `pull_request`
+            # run, on every PR. Verified live on terraform-microsoft365-entra#20.
+            #
+            # The `::error::` annotation above still renders in the run summary, so the
+            # reason a PR is blocked stays visible. The other `exit 1`s in this job are
+            # unchanged -- those are genuine breakage (an unresolvable PR number or head
+            # SHA) and they fail closed: the pending status is posted AFTER that step,
+            # so the required context is simply absent and the merge is blocked anyway.
+            # Per IAC-D47: red means broken, not "a normal step hasn't happened yet".
+            exit 0
           fi
