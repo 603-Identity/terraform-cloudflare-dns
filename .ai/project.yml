@@ -41,10 +41,10 @@ planning:
 decisions:
   log: docs/roadmap.md  # this repo's own CFDNS-D decisions, plus a cited list of the
                         # org-wide IAC-D decisions (logged in infrastructure-core) that bind it.
-  prefix: CFDNS-D    # CFDNS-D1 (applies IAC-D48): decisions affecting this repo alone are CFDNS-D, logged in
-                     # docs/roadmap.md. Decisions shared with another repo, or org-wide,
-                     # stay IAC-D in infrastructure-core's log, so each series has one
-                     # numbering authority and can never collide.
+  prefix: CFDNS-D    # CFDNS-D1, applying IAC-D48: decisions affecting this repo alone are
+                     # CFDNS-D, logged in docs/roadmap.md. Decisions shared with another
+                     # repo, or org-wide, stay IAC-D in infrastructure-core's log, so each
+                     # series has one numbering authority and can never collide.
 
 backlog:
   kind: github_issues  # infrastructure-core switched to GitHub issues at its Sprint 10
