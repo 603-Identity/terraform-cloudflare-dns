@@ -43,7 +43,7 @@ jobs:
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
-          tofu_version: 1.11.6
+          tofu_version: 1.11.14
           # Same reasoning as pull-request.yml: the default wrapper masks tofu's
           # real exit code behind step outputs.
           tofu_wrapper: false
