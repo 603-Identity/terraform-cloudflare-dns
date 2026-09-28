@@ -98,7 +98,7 @@ code_paths:
   - checkov-ledger.json
   # A provider-version bump changes real runtime behavior and deserves the same review as a
   # *.tf change. architect-review-gate.yml already matched it; listing it here too closes
-  # that gap (infrastructure-core#458) so `review.ci_gate.triggers_on: null` -- "same as
+  # that gap (infrastructure-core#508, IAC-BL-124) so `review.ci_gate.triggers_on: null` -- "same as
   # code_paths" -- is exactly true.
   - .terraform.lock.hcl
 
