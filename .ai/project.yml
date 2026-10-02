@@ -6,21 +6,26 @@
 # from that workflow's run steps, and the ruleset block from a live API call. Nothing here
 # was copied from a sibling repo's file.
 #
-# NOTE on the nulls: this is a single-module repo with no deep record of its own -- no docs/,
-# no sprints/, no decisions log. Its roadmap, decisions, and backlog all live in
-# 603-Identity/infrastructure-core (IAC-D13 gave this repo its dependabot.yml; IAC-BL-23 and
-# IAC-BL-24 are findings ABOUT this repo recorded THERE). The schema's paths are
-# repo-relative and cannot express "in a sibling repo", so those keys are null: a null is a
-# decision the skills handle cleanly, where a wrong path would send them reading a file that
-# does not exist. See the upstream issue on a cross-repo record seam.
+# way-of-working v0.13.0 (WB-D17): every schema key must be present, and `roadmap`,
+# `sprints_dir` and `decisions.log` may no longer be null. Until then this repo pointed all
+# three at 603-Identity/infrastructure-core with nulls, because the schema's paths are
+# repo-relative and cannot express "in a sibling repo". It now keeps a small record of its
+# own in docs/roadmap.md -- module status, next action, and the IAC-D decisions that bind
+# this repo -- which points into infrastructure-core's roadmap rather than duplicating it.
+# Sprint work is planned as GitHub milestones on this repo's own issue tracker (see
+# `planning` and `backlog` below).
 
 # ── identity ─────────────────────────────────────────────────────────────────
 repo: 603-Identity/terraform-cloudflare-dns
 pr_base: main
+migration_base: null   # no long-lived integration branch; work lands on main directly.
 
 # ── the deep record ──────────────────────────────────────────────────────────
-roadmap: null        # none here; the migration roadmap is infrastructure-core's.
-sprints_dir: null    # sprints are run in infrastructure-core, not in the module repo.
+roadmap: docs/roadmap.md   # this module's status + next action; the org-wide migration
+                           # roadmap remains infrastructure-core's docs/iac_migration_roadmap.md.
+sprints_dir: sprints       # exists (sprints/README.md) so the path resolves, but holds no plans:
+                           # planning.kind is github_milestones, so sprints are milestones on this
+                           # repo. Required non-null by v0.13.0.
 threat_model: docs/threat_model.md   # untrusted inputs, sinks, credential holders,
                            # boundaries meant to hold. Added infrastructure-core#476 step 1 --
                            # a dedicated file, not a README section, so security-critic never
@@ -29,17 +34,29 @@ threat_model: docs/threat_model.md   # untrusted inputs, sinks, credential holde
                            # own docs/threat_model.md were split out for. README.md points into
                            # it rather than duplicating it.
 
+planning:
+  kind: github_milestones   # one sprint = one milestone on this repo; its issues are the
+                            # task list. Requires backlog.kind: github_issues (below).
+
 decisions:
-  log: null          # IAC-D* decisions affecting this repo are logged in
-                     # infrastructure-core/docs/iac_migration_roadmap.md.
-  prefix: IAC-D      # the org-wide prefix, so a new decision is numbered in that series
-                     # rather than starting a competing one.
+  log: docs/roadmap.md  # this repo's own CFDNS-D decisions, plus a cited list of the
+                        # org-wide IAC-D decisions (logged in infrastructure-core) that bind it.
+  prefix: CFDNS-D    # CFDNS-D1, applying IAC-D48: decisions affecting this repo alone are
+                     # CFDNS-D, logged in docs/roadmap.md. Decisions shared with another
+                     # repo, or org-wide, stay IAC-D in infrastructure-core's log, so each
+                     # series has one numbering authority and can never collide.
 
 backlog:
-  kind: file         # NOT github_issues -- this repo does not use issues for findings.
-  path: null         # the file is infrastructure-core/docs/backlog.md, cross-repo and so
-                     # unreachable from here. Skills take the no-file branch.
-  item_prefix: IAC-BL-
+  kind: github_issues  # infrastructure-core switched to GitHub issues at its Sprint 10
+                       # (IAC-BL-114, 2026-09-04), which retired the old reason for
+                       # `kind: file` + `path: null` here (a hub file unreachable from this
+                       # repo). Same shape as terraform-microsoft365-entra's.
+  repo: null           # this repo's own tracker. Milestones live in {backlog.repo}, so the
+                       # hub (603-Identity/infrastructure-core) would put this repo's sprints
+                       # in infrastructure-core's milestone list; kept local instead.
+                       # Historical IAC-BL-N citations still resolve in the hub.
+  path: null
+  item_prefix: null
 
 # README.md carries the module's usage contract (the `source = git::...?ref=` example
 # consumers copy). docs/threat_model.md is the dedicated threat-model doc README.md points
@@ -47,6 +64,7 @@ backlog:
 load_bearing_docs:
   - README.md
   - docs/threat_model.md
+  - docs/roadmap.md
 
 # ── what counts as a behavior change ─────────────────────────────────────────
 # The .tftest.hcl files are included deliberately: they are this module's only coverage, so
@@ -78,6 +96,11 @@ code_paths:
   # known_invisible entry -- would otherwise stay green by design with no critic ever
   # routed to it); added here in the same commit that introduces the file, not after.
   - checkov-ledger.json
+  # A provider-version bump changes real runtime behavior and deserves the same review as a
+  # *.tf change. architect-review-gate.yml already matched it; listing it here too closes
+  # that gap (infrastructure-core#508, IAC-BL-124) so `review.ci_gate.triggers_on: null` -- "same as
+  # code_paths" -- is exactly true.
+  - .terraform.lock.hcl
 
 # ── the local green gate ─────────────────────────────────────────────────────
 # A local pre-check, not the gate of record -- CI on the PR is. Mirrors pull-request.yml's
@@ -158,6 +181,8 @@ review:
     check: architect-review
     header: "**Opus/Architect HITL review (automated)**"
     attestation: "*Fresh-session review: this session did not author the diff.*"
+    triggers_on: null   # the gate fires on code_paths. architect-review-gate.yml mirrors
+                        # that list in its `case` block by hand -- keep the two in sync.
 
 # ── agents ───────────────────────────────────────────────────────────────────
 agents:
@@ -165,3 +190,5 @@ agents:
 models:
   architect: opus
   coder: sonnet
+  second_opinion: fable   # offered as an optional late critic-gate round on a different
+                          # model; runs only when the human authorizes it in-session.
