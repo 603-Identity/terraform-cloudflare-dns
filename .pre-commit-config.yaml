@@ -22,11 +22,12 @@ repos:
   #
   # `repo: local` + `language: system` ON PURPOSE, rather than pinning
   # Yelp/detect-secrets by rev. `detect-secrets` resolves to **bc-detect-secrets
-  # 1.5.47** -- Bridgecrew's fork -- wherever `checkov==3.3.8` is installed on the
-  # same PATH, and that fork REJECTS a baseline written by upstream 1.5.0 (and vice
-  # versa). Pinning the upstream rev here would let this hook and the CI job
-  # disagree about the same file. Using the system binary keeps the hook, the
-  # baseline, and CI's explicit `bc-detect-secrets==1.5.47` pin all one version --
+  # 1.5.51** -- Bridgecrew's fork, the version the shared devcontainer image ships --
+  # and that fork REJECTS a baseline written by upstream 1.5.0 (and vice versa).
+  # Pinning the upstream rev here would let this hook and the CI job disagree
+  # about the same file. Using the system binary keeps the hook, the baseline,
+  # and CI's explicit `bc-detect-secrets==1.5.51` pin all one version -- a
+  # mismatch shows up as this hook rewriting .secrets.baseline's `version` --
   # same reasoning as infrastructure-core's own `.pre-commit-config.yaml` (IAC-BL-101).
   - repo: local
     hooks:

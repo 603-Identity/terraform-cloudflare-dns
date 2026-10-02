@@ -155,7 +155,7 @@ jobs:
       # checkov bump can't silently move this version out from under
       # .secrets.baseline -- same reasoning as infrastructure-core's gates-green.yml.
       - name: Install detect-secrets
-        run: pip install bc-detect-secrets==1.5.47
+        run: pip install bc-detect-secrets==1.5.51  # match the devcontainer image
 
       # SAME MECHANISM AS the pre-commit hook (.pre-commit-config.yaml),
       # deliberately, against the SAME baseline -- not a second, weaker copy.

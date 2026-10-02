@@ -104,7 +104,7 @@ gates:
     # infrastructure-core#476 step 2: the secret-scanning gate. Mirrors
     # pull-request.yml's secret-scan job and .pre-commit-config.yaml's local hook --
     # same binary, same baseline, on purpose, not a third weaker copy. Requires
-    # bc-detect-secrets==1.5.47 on PATH (the Bridgecrew fork, NOT Yelp's upstream --
+    # bc-detect-secrets==1.5.51 on PATH (the Bridgecrew fork, NOT Yelp's upstream --
     # the two reject each other's baseline files). `git ls-files -z` scopes this to
     # tracked files only.
     - { cwd: ".", run: "git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline" }
