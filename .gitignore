@@ -12,3 +12,7 @@ crash.*.log
 # Ignore variables files containing real credentials used for local testing
 *.tfvars
 *.tfvars.json
+
+# OpenTofu data dir used inside the devcontainer (TF_DATA_DIR in the image), kept apart from
+# the host's .terraform.
+.terraform-devcontainer/
