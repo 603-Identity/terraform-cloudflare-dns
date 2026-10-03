@@ -65,15 +65,15 @@ code_paths:
   # all. Same reasoning infrastructure-core applies to its own .ai/project.yml entry.
   - .ai/project.yml
   # infrastructure-core#476 step 2: until this entry existed, .pre-commit-config.yaml and
-  # .secrets.baseline matched nothing in code_paths, so an edit weakening either would have
-  # routed to no reviewer at all. .pre-commit-config.yaml carries the commit-time half of the
-  # secret gate; .secrets.baseline is the sharper of the two -- it is an ALLOWLIST OF THINGS
-  # NOT TO ALERT ON, the one file in this repo where a real secret could be parked and the
-  # gate would stay green by design. Same reasoning as infrastructure-core's own
-  # code_paths entry for the identical pair (IAC-BL-101).
+  # the secret-scan allowlist matched nothing in code_paths, so an edit weakening either would
+  # have routed to no reviewer at all. .pre-commit-config.yaml carries the commit-time half of
+  # the secret gate. .betterleaksignore (and an optional betterleaks.toml) replaced
+  # .secrets.baseline in #47 and are the sharper half -- an ALLOWLIST OF THINGS NOT TO ALERT
+  # ON, where a real secret could be parked and the gate would stay green by design.
   - .pre-commit-config.yaml
-  - .secrets.baseline
-  # Sprint 15 T6 (IAC-D47): checkov-ledger.json is this repo's own .secrets.baseline
+  - .betterleaksignore
+  - betterleaks.toml
+  # Sprint 15 T6 (IAC-D47): checkov-ledger.json is this repo's allowlist
   # shape for Checkov -- an allowlist of accepted findings, sanctioned skips and
   # known-invisible directories that must be human-reviewed, never auto-generated.
   # infrastructure-core routed its own checkov-ledger.json here in Sprint 15 T1 after
@@ -104,13 +104,8 @@ gates:
     - { cwd: ".", run: tofu fmt -check -recursive }
     - { cwd: ".", run: "tofu init -backend=false && tofu validate" }
     - { cwd: ".", run: "tofu test -filter=main.tftest.hcl" }
-    # infrastructure-core#476 step 2: the secret-scanning gate. Mirrors
-    # pull-request.yml's secret-scan job and .pre-commit-config.yaml's local hook --
-    # same binary, same baseline, on purpose, not a third weaker copy. Requires
-    # bc-detect-secrets==1.5.47 on PATH (the Bridgecrew fork, NOT Yelp's upstream --
-    # the two reject each other's baseline files). `git ls-files -z` scopes this to
-    # tracked files only.
-    - { cwd: ".", run: "git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline" }
+    # No secret-scan entry since #47: the pre-commit Betterleaks hook scans each commit's
+    # staged changes, and CI's required `secrets / scan` check is the gate of record.
 
 # ── branch protection ────────────────────────────────────────────────────────
 # LIVE as of 2026-09-10 (infrastructure-core#456, infrastructure-core#476 step 4):
@@ -149,8 +144,9 @@ ruleset:
   required_checks:
     - "Mocked tofu test"
     - "Checkov (HCL) -- policy scan"
-    - "Secret scan (detect-secrets)"
     - "architect-review"
+    - "verify / verify"
+    - "secrets / scan"
 
 # ── the fresh-session review gate ────────────────────────────────────────────
 # architect-review-gate.yml copied from terraform-microsoft365-entra's (the most recent

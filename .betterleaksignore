@@ -1,0 +1,2 @@
+# Reviewed Betterleaks false positives only: one fingerprint per line, each with a comment saying why.
+# See 603-Identity/devcontainers README, "Org secret scanning". The pre-commit hook needs this file to exist.
