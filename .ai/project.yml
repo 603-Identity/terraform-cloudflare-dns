@@ -6,10 +6,10 @@
 # from that workflow's run steps, and the ruleset block from a live API call. Nothing here
 # was copied from a sibling repo's file.
 #
-# NOTE on the nulls: this is a single-module repo with no deep record of its own -- no docs/,
-# no sprints/, no decisions log. Its roadmap, decisions, and backlog all live in
-# 603-Identity/infrastructure-core (IAC-D13 gave this repo its dependabot.yml; IAC-BL-23 and
-# IAC-BL-24 are findings ABOUT this repo recorded THERE). The schema's paths are
+# NOTE on the nulls: this is a single-module repo with no roadmap or decisions log of its own.
+# Those live in 603-Identity/infrastructure-core (IAC-D13 gave this repo its dependabot.yml;
+# IAC-BL-23 and IAC-BL-24 are older findings ABOUT this repo recorded THERE). Its backlog and
+# sprints are this repo's own issues and milestones (`backlog`, `planning`). The schema's paths are
 # repo-relative and cannot express "in a sibling repo", so those keys are null: a null is a
 # decision the skills handle cleanly, where a wrong path would send them reading a file that
 # does not exist. See the upstream issue on a cross-repo record seam.
@@ -20,7 +20,7 @@ pr_base: main
 
 # ── the deep record ──────────────────────────────────────────────────────────
 roadmap: null        # none here; the migration roadmap is infrastructure-core's.
-sprints_dir: null    # sprints are run in infrastructure-core, not in the module repo.
+sprints_dir: null    # unused under planning.kind: github_milestones; sprints are this repo's milestones.
 threat_model: docs/threat_model.md   # untrusted inputs, sinks, credential holders,
                            # boundaries meant to hold. Added infrastructure-core#476 step 1 --
                            # a dedicated file, not a README section, so security-critic never
@@ -36,10 +36,13 @@ decisions:
                      # rather than starting a competing one.
 
 backlog:
-  kind: file         # NOT github_issues -- this repo does not use issues for findings.
-  path: null         # the file is infrastructure-core/docs/backlog.md, cross-repo and so
-                     # unreachable from here. Skills take the no-file branch.
-  item_prefix: IAC-BL-
+  kind: github_issues  # findings are issues in this repo, cited as #N.
+  repo: null           # this repo.
+  path: null           # present always; only used by kind: file.
+  item_prefix: null    # present always; only used by kind: file.
+
+planning:
+  kind: github_milestones  # one sprint = one milestone in this repo; its issues are the tasks.
 
 # README.md carries the module's usage contract (the `source = git::...?ref=` example
 # consumers copy). docs/threat_model.md is the dedicated threat-model doc README.md points
