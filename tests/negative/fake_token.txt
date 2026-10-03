@@ -1,0 +1,3 @@
+# Negative test for 603-Identity/devcontainers#10 -- a MADE-UP token, never valid.
+# This PR must be blocked by secrets / scan and then closed unmerged.
+github_token = "ghp_1jTZhypqJlXQTdJ2a7kcHHL3gZvFZ8rdiK19"
