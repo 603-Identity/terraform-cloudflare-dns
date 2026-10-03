@@ -399,7 +399,7 @@ jobs:
                 case "$f" in
                   # >>> CONSUMER: code_paths
                   *.tf|*.tftest.hcl|.terraform.lock.hcl|.devcontainer/*) touches=1 ;;
-                  .ai/project.yml|.pre-commit-config.yaml|.secrets.baseline|checkov-ledger.json|.claude/*) touches=1 ;;
+                  .ai/project.yml|.pre-commit-config.yaml|betterleaks.toml|.betterleaksignore|checkov-ledger.json|.claude/*) touches=1 ;;
                   # <<< CONSUMER: code_paths
                 esac
               done <<< "$files"

@@ -1,5 +1,4 @@
 # Every file here is read inside a Linux container (the devcontainer image, CI). A CRLF
-# working tree makes the container's git report every file as modified and fails the
-# detect-secrets gate ("baseline file is unstaged"). Force LF on every checkout, including
+# working tree makes the container's git report every file as modified. Force LF on every checkout, including
 # Windows hosts with core.autocrlf=true. verify / verify also rejects CR in .devcontainer/.
 * text=auto eol=lf
