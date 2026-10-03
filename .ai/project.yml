@@ -81,6 +81,14 @@ code_paths:
   # known_invisible entry -- would otherwise stay green by design with no critic ever
   # routed to it); added here in the same commit that introduces the file, not after.
   - checkov-ledger.json
+  # .claude/settings.json enables a third-party plugin (way-of-working, whose hooks and
+  # commands run with the developer's credentials), pins its marketplace by a MUTABLE tag
+  # (`ref:`; the settings schema has no `sha` field), and holds the agent deny list. It is
+  # executable config, not a doc, so an edit repointing the marketplace, moving the ref or
+  # deleting a deny entry must route to a reviewer. It was tracked here with no code_paths
+  # entry -- found in the review of terraform-microsoft365-entra#29, which copied this repo's
+  # gate block and so dropped its own `.claude/` entry (603-Identity/devcontainers#214).
+  - .claude/
 
 # ── the local green gate ─────────────────────────────────────────────────────
 # A local pre-check, not the gate of record -- CI on the PR is. Mirrors pull-request.yml's
