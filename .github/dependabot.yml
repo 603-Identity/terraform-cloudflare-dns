@@ -14,3 +14,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+
+  # The devcontainer image pin (.devcontainer/Dockerfile FROM, tag + digest). A human reviews
+  # and merges every bump: auto-merge is off for this repo (no devc-automerge-on tag).
+  - package-ecosystem: "docker"
+    directory: "/.devcontainer"
+    schedule:
+      interval: "weekly"
