@@ -9,6 +9,8 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Also bumps the SHA-pinned 603-Identity/devcontainers reusable-workflow calls in
+  # secret-scan.yml, devcontainer-image.yml and architect-review-gate.yml, as reviewed PRs.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
