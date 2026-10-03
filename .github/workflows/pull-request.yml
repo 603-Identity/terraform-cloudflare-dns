@@ -132,7 +132,7 @@ jobs:
       # `tofu-test` job above) and the `architect-review` fresh-session gate
       # are this repo's compensating controls for that gap -- see
       # docs/threat_model.md.
-      - uses: 603-Identity/checkov-ledger-action@da47eaa56584dda1f19bb8aa9bdff413b3a6f874 # v0.1.0
+      - uses: 603-Identity/checkov-ledger-action@e868dfe172ff9f28260ceb4dddf0f39001b2bbcd # v0.1.2
 
   # ---------------------------------------------------------------------------
   # THE SEPARATE `checkov-ledger` JOB IS DELETED (Sprint 15 T7, 2026-09-16),
