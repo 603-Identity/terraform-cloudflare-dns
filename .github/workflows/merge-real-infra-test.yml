@@ -18,8 +18,9 @@ name: Real Infrastructure Test (merge-time)
 # sharing that role or parameter path.
 #
 # workflow_dispatch is also wired so this can be re-run manually without needing a new
-# commit -- the trusted OIDC subject is pinned to ref:refs/heads/main, so a manual
-# dispatch only authenticates when run against main.
+# commit. The job runs in the `real-infra-test` Environment, which allows only `main`
+# and requires a reviewer's approval, so every run -- push or dispatch -- waits for
+# that approval before it reaches the AWS step.
 on:
   push:
     branches:
@@ -35,6 +36,7 @@ jobs:
   real-infra-test:
     name: tofu test (real Cloudflare API, disposable scratch zone)
     runs-on: ubuntu-latest
+    environment: real-infra-test
 
     steps:
       - name: Checkout Code
