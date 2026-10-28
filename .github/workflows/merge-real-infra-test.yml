@@ -12,7 +12,7 @@ name: Real Infrastructure Test (merge-time)
 # Sprint 08 Task 8 (infrastructure-core): moved off Infisical (identity
 # bad721bb-...) onto AWS SSM Parameter Store, via a plan-read-shaped role
 # (terraform-cloudflare-dns-cicd-test-read, infrastructure-core's
-# bootstrap/main.tf) scoped to this workflow's own live-probed OIDC subject --
+# bootstrap/main.tf) scoped to the `real-infra-test` Environment's OIDC subject --
 # same store, same shape, as infrastructure-core's own pull-request.yml
 # (Sprint 08 Task 5), authored for a second, independent repo rather than
 # sharing that role or parameter path.
