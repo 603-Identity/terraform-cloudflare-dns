@@ -33,8 +33,11 @@ Cloudflare token may ever appear in a log, an environment dump, or a diff a revi
 ## Credential holders
 
 - `terraform-cloudflare-dns-cicd-test-read` (AWS IAM role, `infrastructure-core`'s
-  `bootstrap/main.tf`), assumed via GitHub OIDC by `merge-real-infra-test.yml` on push to
-  `main` (or a matching manual `workflow_dispatch`). Scoped to exactly `ssm:GetParameter` on
+  `bootstrap/main.tf`), assumed via GitHub OIDC only by the `real-infra-test` job of
+  `merge-real-infra-test.yml`, which runs in the `real-infra-test` Environment. The role's
+  trust accepts only that Environment's OIDC subject, so a run on push to `main` or on manual
+  `workflow_dispatch` gets credentials only after its deployment is approved — see "Boundaries
+  meant to hold" below. Scoped to exactly `ssm:GetParameter` on
   two parameters plus `kms:Decrypt` on the one key protecting them — no standing Cloudflare
   token lives in this repo, no client secret, no long-lived AWS key.
 - The Cloudflare API token itself, held only in AWS SSM Parameter Store
@@ -62,9 +65,15 @@ Cloudflare token may ever appear in a log, an environment dump, or a diff a revi
 
 - **No Cloudflare credential ever exists in PR-triggered CI.** `pull-request.yml` needs no
   credentials and cannot reach a real zone; the only workflow with any credential-bearing step
-  is `merge-real-infra-test.yml`, gated to `push: branches: [main]` (its trusted OIDC subject
-  is pinned to `ref:refs/heads/main`) plus a manually-triggered `workflow_dispatch` that
-  authenticates under the same pin.
+  is `merge-real-infra-test.yml`, triggered on `push: branches: [main]` or a manual
+  `workflow_dispatch`.
+- **The test role is reachable only through an approved `real-infra-test` deployment.** The
+  workflow's one job runs in the `real-infra-test` Environment, which allows deployments from
+  `main` only, requires one reviewer's approval, and has admin bypass off. The role's trust
+  policy (`infrastructure-core`'s `bootstrap/main.tf`) accepts only that Environment's OIDC
+  subject, so no job outside it, and no run before approval, can assume the role. The approval
+  is a single required reviewer and self-review is allowed — it is a deliberate pause before
+  credentials are issued, not two-person control.
 - **The merge-time test can only ever reach the disposable scratch zone.** `realinfra.tftest.hcl`
   takes its zone from `TF_VAR_zone_id`, sourced only from the
   `/terraform-cloudflare-dns/cicd-test/cloudflare_zone_id` SSM parameter — there is no code path
